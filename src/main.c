@@ -20,10 +20,14 @@ static void UpdateGame(void);       // Update game (one frame)
 static void DrawGame(void);         // Draw game (one frame)
 static void UnloadGame(void);       // Unload game
 static void UpdateDrawFrame(void);  // Update and Draw (one frame)
+static char* WindowName = "Simple Chess Engine - Alpha 1.0";
+static float rotation = 0.f;
+static const char* titleText = "Simple Chess Engine!";
+static Font titleScreenFont;
 
 int main(void)
 {
-    InitWindow(screenWidth, screenHeight, "classic game: arkanoid");
+    InitWindow(screenWidth, screenHeight, WindowName);
 
     InitGame();
 
@@ -43,6 +47,7 @@ int main(void)
 void InitGame(void)
 {
     currentScreenState = MENU;
+    titleScreenFont = LoadFontEx("resources/Philosopher-Bold.ttf", 40, 0, 250);
 }
 
 // Update game (one frame)
@@ -57,17 +62,22 @@ void DrawGame(void)
     ClearBackground(RAYWHITE);
     switch(currentScreenState) {
         case MENU: {
-            DrawRectangle(0, 0, screenWidth, screenHeight, GREEN);
+            DrawRectangle(0, 0, screenWidth, screenHeight, GREEN); // background
             {
-            Vector2 bottom_center = {(float) screenWidth / 2, (float) screenHeight};
-            DrawCircleSector(bottom_center, (float) screenHeight, PI/2, PI/3, 1, RED);
+            Vector2 bottom_center = {screenWidth/2, screenHeight/2};
+            DrawCircleSector(bottom_center, (float) screenHeight / 2, 0. + rotation, 90. + rotation, 20, RED);
             }
+            Vector2 text_dims = MeasureTextEx(titleScreenFont, titleText, 40, 5); 
+            int text_width = text_dims.x;
+            Vector2 TextPos = {screenWidth/2 - text_width/2, screenHeight/2 - text_width/2};
+            DrawTextEx(titleScreenFont, titleText, TextPos, 40, 5, BLACK);
         }
         case GAME: {
 
         }
     }
     EndDrawing();
+    rotation += 0.5;
 }
 
 // Unload game variables

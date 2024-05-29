@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(raylib-game-template)
+project(chess_engine)
 
 set(PROJECT_NAME "CHESS_ENGINE")
 
