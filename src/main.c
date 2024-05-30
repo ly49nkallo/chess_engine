@@ -1,5 +1,5 @@
 #include "raylib.h"
-
+#include "screens.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -15,21 +15,20 @@ static ScreenState currentScreenState;
 static int screenWidth = 800;
 static int screenHeight = 450;
 
-static void InitGame(void);         // Initialize game
-static void UpdateGame(void);       // Update game (one frame)
-static void DrawGame(void);         // Draw game (one frame)
-static void UnloadGame(void);       // Unload game
+static void InitApp(void);         // Initialize App
+static void UpdateFrame(void);       // Update Frame (one frame)
+static void DrawFrame(void);         // Draw Frame (one frame)
+static void UnloadFrame(void);       // Unload Frame
 static void UpdateDrawFrame(void);  // Update and Draw (one frame)
+static void ChangeScreen(ScreenState);     // Handle screen transition (unloading, initalizing)
+
 static char* WindowName = "Simple Chess Engine - Alpha 1.0";
-static float rotation = 0.f;
-static const char* titleText = "Simple Chess Engine!";
-static Font titleScreenFont;
 
 int main(void)
 {
     InitWindow(screenWidth, screenHeight, WindowName);
 
-    InitGame();
+    InitApp();
 
     SetTargetFPS(30);
     while (!WindowShouldClose())    // Detect window close button or ESC key
@@ -38,50 +37,76 @@ int main(void)
         UpdateDrawFrame();
     }
     // De-Initialization
-    UnloadGame();         // Unload loaded data (textures, sounds, models...)
+    UnloadFrame();         // Unload loaded data (textures, sounds, models...)
     CloseWindow();        // Close window and OpenGL context
     return 0;
 }
 
 // Initialize game variables
-void InitGame(void)
+void InitApp(void)
 {
     currentScreenState = MENU;
-    titleScreenFont = LoadFontEx("resources/Philosopher-Bold.ttf", 40, 0, 250);
+    ChangeScreen(MENU);
 }
 
 // Update game (one frame)
-void UpdateGame(void)\
+void UpdateFrame(void)
 {
+    switch(currentScreenState) {
+        case MENU:
+            UpdateTitleScreen();
+            break;
+        case GAME:
+            UpdateGameScreen();
+            break;
+        default:
+            printf("ERROR: Unhandled Screen Update %d\n", currentScreenState);
+            break;
+    }
+}
+
+// Handle Screen Transitions
+void ChangeScreen(ScreenState newScreenState) 
+{
+    // Handle unloading previous screen
+    switch(currentScreenState) {
+        case MENU: UnloadTitleScreen(); break;
+        case GAME: break;
+        default: 
+            if (&currentScreenState != ((void *)0)) {
+                printf("ERROR: Unhandled Screen Unload %d\n", currentScreenState);
+            } break;
+    }
+
+    // Handle initializing new screen
+    switch(newScreenState) {
+        case MENU: InitTitleScreen(); break;
+        case GAME: InitGameScreen(); break;
+        default: printf("ERROR: Unhandled Screen State %d\n", newScreenState); break;
+    }
+
+    currentScreenState = newScreenState;
 }
 
 // Draw game (one frame)
-void DrawGame(void)
+void DrawFrame(void)
 {
     BeginDrawing();
-    ClearBackground(RAYWHITE);
+    ClearBackground(VIOLET);
     switch(currentScreenState) {
-        case MENU: {
-            DrawRectangle(0, 0, screenWidth, screenHeight, GREEN); // background
-            {
-            Vector2 bottom_center = {screenWidth/2, screenHeight/2};
-            DrawCircleSector(bottom_center, (float) screenHeight / 2, 0. + rotation, 90. + rotation, 20, RED);
-            }
-            Vector2 text_dims = MeasureTextEx(titleScreenFont, titleText, 40, 5); 
-            int text_width = text_dims.x;
-            Vector2 TextPos = {screenWidth/2 - text_width/2, screenHeight/2 - text_width/2};
-            DrawTextEx(titleScreenFont, titleText, TextPos, 40, 5, BLACK);
-        }
-        case GAME: {
-
-        }
+        case MENU:
+            DrawTitleScreen();
+            break;
+        case GAME:
+            //TODO
+            break;
+        default: printf("ERROR: Unhandled Screen State %d\n", currentScreenState); break;
     }
     EndDrawing();
-    rotation += 0.5;
 }
 
 // Unload game variables
-void UnloadGame(void)
+void UnloadFrame(void)
 {
     // TODO: Unload all dynamic loaded data (textures, sounds, models...)
 }
@@ -89,6 +114,6 @@ void UnloadGame(void)
 // Update and Draw (one frame)
 void UpdateDrawFrame(void)
 {
-    UpdateGame();
-    DrawGame();
+    UpdateFrame();
+    DrawFrame();
 }

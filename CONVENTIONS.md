@@ -1,4 +1,4 @@
-## C Coding Style Conventions
+# C Coding Style Conventions
 
 Code element | Convention | Example
 --- | :---: | ---
@@ -24,10 +24,12 @@ Functions params | lowerCase | `width`, `height`
 Ternary Operator | (condition)? result1 : result2 | `printf("Value is 0: %s", (value == 0)? "yes" : "no");`
 
 Other conventions:
- - All defined variables are ALWAYS initialized
- - Four spaces are used, instead of TABS
- - Trailing spaces are always avoided
- - Control flow statements are followed **by a space**:
+
+- All defined variables are ALWAYS initialized
+- Four spaces are used, instead of TABS
+- Trailing spaces are always avoided
+- Control flow statements are followed **by a space**:
+
 ```c
 if (condition) value = 0;
 
@@ -48,14 +50,18 @@ switch (value)
     default: break;
 }
 ```
- - All conditions are always between parenthesis, but not boolean values:
+
+- All conditions are always between parenthesis, but not boolean values:
+
 ```c
 if ((value > 1) && (value < 50) && valueActive)
 {
 
 }
 ```
- - Braces and curly brackets always open-close in aligned mode:
+
+- Braces and curly brackets always open-close in aligned mode:
+
 ```c
 void SomeFunction()
 {
@@ -65,17 +71,17 @@ void SomeFunction()
 
 ## Files and Directories Naming Conventions
 
-  - Directories are named using `snake_case`: `resources/models`, `resources/fonts`
-  - Files are named using `snake_case`: `main_title.png`, `cubicmap.png`, `sound.wav`
+- Directories are named using `snake_case`: `resources/models`, `resources/fonts`
+- Files are named using `snake_case`: `main_title.png`, `cubicmap.png`, `sound.wav`
 
 _NOTE: Spaces and special characters are always avoided in the files/dir naming!_
 
 ## Games/Examples Directories Organization Conventions
 
- - Resource files are organized by context and usage in the game. Loading requirements for data are also considered (grouping data when required).
- - Descriptive names are used for the files, just reading the name of the file it should be possible to know what is that file and where fits in the game.
+- Resource files are organized by context and usage in the game. Loading requirements for data are also considered (grouping data when required).
+- Descriptive names are used for the files, just reading the name of the file it should be possible to know what is that file and where fits in the game.
 
-```
+```None
 resources/audio/fx/long_jump.wav
 resources/audio/music/main_theme.ogg
 resources/screens/logo/logo.png
@@ -86,4 +92,5 @@ resources/characters/enemy_slime.png
 resources/common/font_arial.ttf
 resources/common/gui.png
 ```
+
 _NOTE: Some resources require to be loaded all at once while other require to be loaded only at initialization (gui, font)._
