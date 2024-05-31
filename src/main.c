@@ -1,7 +1,6 @@
 #include "raylib.h"
 #include "screens.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
 #include <math.h>
 
@@ -12,7 +11,7 @@
 static ScreenState currentScreenState;
 
 static int screenWidth = 800;
-static int screenHeight = 450;
+static int screenHeight = 550;
 
 static void InitApp(void);         // Initialize App
 static void UpdateFrame(void);       // Update Frame (one frame)
@@ -60,7 +59,7 @@ void UpdateFrame(void)
         case GAME:
             UpdateGameScreen();
             if (GameScreenEnded() != 0)
-                ChangeScreen(TitleScreenEnded());
+                ChangeScreen(GameScreenEnded());
             break;
         default:
             printf("ERROR: Unhandled Screen Update %d\n", currentScreenState);
@@ -71,12 +70,18 @@ void UpdateFrame(void)
 // Handle Screen Transitions
 void ChangeScreen(ScreenState newScreenState) 
 {
+    if (&currentScreenState != (void*)0) // if currentScreenState is NULL
+        printf("Changing Screen from ID:%d to ID:%d\n", currentScreenState, newScreenState);
+
+    if (currentScreenState == newScreenState)
+        printf("ERROR: Changing to already running screen state ID:%d\n", currentScreenState);
+
     // Handle unloading previous screen
     switch(currentScreenState) {
         case MENU: UnloadTitleScreen(); break;
-        case GAME: break;
+        case GAME: UnloadGameScreen(); break;
         default: 
-            if (&currentScreenState != ((void *)0)) {
+            if (&currentScreenState != ((void*)0)) {
                 printf("ERROR: Unhandled Screen Unload %d\n", currentScreenState);
             } break;
     }
