@@ -4,13 +4,12 @@
 #include <assert.h>
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        printf("Usage: test.exe <text>");
-        exit(-1);
-    }
-    char* text = argv[1];
-    int textlen = strlen(text);
-    printf("Text: %s\n", text);
-    printf("Text length: %d\n", textlen);
+    char* digits = "0123456789";
+
+    for (int i = 0; i < 10; i++)
+        printf("%c\n", digits[i]);
+
+    for (int i = 0; i < 10; i++)
+        printf("%c\n", i[digits]);
     return 0;
 }

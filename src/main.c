@@ -9,7 +9,6 @@
     #error Web is not supported
 #endif
 
-typedef enum ScreenState {MENU=0, GAME} ScreenState;
 static ScreenState currentScreenState;
 
 static int screenWidth = 800;
@@ -55,9 +54,13 @@ void UpdateFrame(void)
     switch(currentScreenState) {
         case MENU:
             UpdateTitleScreen();
+            if (TitleScreenEnded() != 0)
+                ChangeScreen(TitleScreenEnded());
             break;
         case GAME:
             UpdateGameScreen();
+            if (GameScreenEnded() != 0)
+                ChangeScreen(TitleScreenEnded());
             break;
         default:
             printf("ERROR: Unhandled Screen Update %d\n", currentScreenState);
@@ -98,7 +101,7 @@ void DrawFrame(void)
             DrawTitleScreen();
             break;
         case GAME:
-            //TODO
+            DrawGameScreen();
             break;
         default: printf("ERROR: Unhandled Screen State %d\n", currentScreenState); break;
     }

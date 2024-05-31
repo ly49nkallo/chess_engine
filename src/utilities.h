@@ -1,6 +1,5 @@
-#ifndef UTILITIES_H
-#define UTILITIES_H
-#endif
+#ifndef CE_UTILITIES_H
+#define CE_UTILITIES_H
 
 typedef struct Button{
     int x, y;
@@ -10,3 +9,5 @@ typedef struct Button{
 } Button;
 
 int isOnButton(int, int, Button*);
+
+#endif // CE_UTILITIES_H
