@@ -32,10 +32,10 @@ void InitGameScreen(void)
 
     whiteSideDown = 1; //Start with white side down
 
-    boardHeight = 7 * GetScreenHeight() / 10; // board will be 70% of the height of the screen
+    boardHeight = 8 * GetScreenHeight() / 10; // board will be 80% of the height of the screen
     boardWidth = boardHeight ; // Board is a square
     boardPosition.x = GetScreenWidth() / 2 - boardWidth / 2; // Centred Board Position
-    boardPosition.y = GetScreenHeight() / 2 - boardHeight / 2 - 50;
+    boardPosition.y = GetScreenHeight() / 2 - boardHeight / 2;
 
     boardTextFont = LoadFontEx("resources/Philosopher-Bold.ttf", 20, 0, 250); // for the annotations on the board
     printf("Loaded Game Screen Successfully\n");
@@ -52,7 +52,9 @@ void DrawGameScreen(void)
     int screenHeight = GetScreenHeight();
     int tileWidth = boardWidth / 8;
     DrawRectangle(0, 0, screenWidth, screenHeight, RAYWHITE); // background
-        // Draw tiles
+    ///////////////////
+    // Render Tiles //
+    ///////////////////
     for (int i = 0; i < 8; i++) { // 1 to 8
         for (int j = 0; j < 8; j++) { // A to G
             DrawRectangle(
@@ -64,7 +66,10 @@ void DrawGameScreen(void)
             );
         }
     }
-    // Render Labels
+    ///////////////////
+    // Render Labels //
+    ///////////////////
+    
     char* ranks = "12345678";
     char* files = "abcdefgh";
     char* symb = MemAlloc(sizeof(char) * 2);
@@ -82,7 +87,7 @@ void DrawGameScreen(void)
         Vector2 symbDims = MeasureTextEx(boardTextFont, symb, 20, 5); 
         symbolPosition.x = boardPosition.x - tileWidth/2 - symbDims.x/2;
         symbolPosition.y = boardPosition.y + tileWidth/2 - symbDims.y/2 + (tileWidth * i);
-        // printf("DEBUG: Board Position: (%f, %f)", symbolPosition.x, symbolPosition.y);
+        symbolPosition.y += tileWidth/8; // Small Correction Needed For Some Reason ...
         if ((symbolPosition.x <= 0 || symbolPosition.x >= screenWidth)
             || (symbolPosition.y <= 0 || symbolPosition.y >= screenHeight))
         {
@@ -98,6 +103,7 @@ void DrawGameScreen(void)
         Vector2 symbDims = MeasureTextEx(boardTextFont, symb, 20, 5); 
         symbolPosition.x = boardPosition.x - tileWidth/2 - symbDims.x/2 + (tileWidth * i) + tileWidth;
         symbolPosition.y = boardPosition.y + boardHeight + tileWidth/2 - symbDims.y/2 ;
+        symbolPosition.y += tileWidth/8; // Small Correction Needed For Some Reason ...
         // printf("DEBUG: Board Position: (%f, %f)", symbolPosition.x, symbolPosition.y);
         if ((symbolPosition.x <= 0 || symbolPosition.x >= screenWidth)
             || (symbolPosition.y <= 0 || symbolPosition.y >= screenHeight))
@@ -109,11 +115,14 @@ void DrawGameScreen(void)
     }
 
     MemFree(symb);
+
+
     return;
 }
 void UnloadGameScreen(void) 
 {
     UnloadFont(boardTextFont);
+    MemFree(currentBoardTheme);
 }
 int GameScreenEnded(void)
 {
