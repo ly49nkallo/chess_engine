@@ -19,7 +19,7 @@ static Vector2 tileSize;
 static int whiteSideDown;
 static Font boardTextFont;
 
-void InitGameScreen(void) 
+void game_screen_init(void) 
 {
     screenEnded = 0;
     frameCount = 0L;
@@ -41,12 +41,12 @@ void InitGameScreen(void)
     printf("Loaded Game Screen Successfully\n");
 }
 
-void UpdateGameScreen(void) 
+void game_screen_update(void) 
 {
     frameCount++;
 }
 
-void DrawGameScreen(void) 
+void game_screen_draw(void) 
 {
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
@@ -55,8 +55,9 @@ void DrawGameScreen(void)
     ///////////////////
     // Render Tiles //
     ///////////////////
-    for (int i = 0; i < 8; i++) { // 1 to 8
-        for (int j = 0; j < 8; j++) { // A to G
+    int i, j;
+    for (i = 0; i < 8; i++) { // 1 to 8
+        for (j = 0; j < 8; j++) { // A to G
             DrawRectangle(
                 boardPosition.x + i * tileWidth, 
                 boardPosition.y + j * tileWidth,
@@ -81,7 +82,7 @@ void DrawGameScreen(void)
     Vector2 symbolPosition;
     Vector2 center = (Vector2) {screenWidth / 2, screenHeight / 2};
     // ranks
-    for (int i = 0; i < 8; i++) {
+    for (i = 0; i < 8; i++) {
         *symb = (char)*(ranks + i);
         *(symb + 1) = '\n'; // terminate string
         Vector2 symbDims = MeasureTextEx(boardTextFont, symb, 20, 5); 
@@ -97,7 +98,7 @@ void DrawGameScreen(void)
         DrawTextEx(boardTextFont, symb, symbolPosition, 20, 5, BLACK);
     }
     // files
-    for (int i = 0; i < 8; i++) {
+    for (i = 0; i < 8; i++) {
         *symb = (char)*(files + i);
         *(symb + 1) = '\n'; // terminate string
         Vector2 symbDims = MeasureTextEx(boardTextFont, symb, 20, 5); 
@@ -119,12 +120,12 @@ void DrawGameScreen(void)
 
     return;
 }
-void UnloadGameScreen(void) 
+void game_screen_unload(void) 
 {
     UnloadFont(boardTextFont);
     MemFree(currentBoardTheme);
 }
-int GameScreenEnded(void)
+int game_screen_ended(void)
 {
     return screenEnded;
 }

@@ -1,8 +1,6 @@
 #include "raylib.h"
 #include "screens.h"
 #include <stdio.h>
-#include <time.h>
-#include <math.h>
 
 #if defined(PLATFORM_WEB)
     #error Web is not supported
@@ -52,14 +50,14 @@ void UpdateFrame(void)
 {
     switch(currentScreenState) {
         case MENU:
-            UpdateTitleScreen();
-            if (TitleScreenEnded() != 0)
-                ChangeScreen(TitleScreenEnded());
+            title_screen_update();
+            if (title_screen_ended() != 0)
+                ChangeScreen(title_screen_ended());
             break;
         case GAME:
-            UpdateGameScreen();
-            if (GameScreenEnded() != 0)
-                ChangeScreen(GameScreenEnded());
+            game_screen_update();
+            if (game_screen_ended() != 0)
+                ChangeScreen(game_screen_ended());
             break;
         default:
             printf("ERROR: Unhandled Screen Update %d\n", currentScreenState);
@@ -78,8 +76,8 @@ void ChangeScreen(ScreenState newScreenState)
 
     // Handle unloading previous screen
     switch(currentScreenState) {
-        case MENU: UnloadTitleScreen(); break;
-        case GAME: UnloadGameScreen(); break;
+        case MENU: title_screen_unload(); break;
+        case GAME: game_screen_unload(); break;
         default: 
             if (&currentScreenState != ((void*)0)) {
                 printf("ERROR: Unhandled Screen Unload %d\n", currentScreenState);
@@ -88,8 +86,8 @@ void ChangeScreen(ScreenState newScreenState)
 
     // Handle initializing new screen
     switch(newScreenState) {
-        case MENU: InitTitleScreen(); break;
-        case GAME: InitGameScreen(); break;
+        case MENU: title_screen_init(); break;
+        case GAME: game_screen_init(); break;
         default: printf("ERROR: Unhandled Screen State %d\n", newScreenState); break;
     }
 
@@ -103,10 +101,10 @@ void DrawFrame(void)
     ClearBackground(VIOLET);
     switch(currentScreenState) {
         case MENU:
-            DrawTitleScreen();
+            title_screen_draw();
             break;
         case GAME:
-            DrawGameScreen();
+            game_screen_draw();
             break;
         default: printf("ERROR: Unhandled Screen State %d\n", currentScreenState); break;
     }

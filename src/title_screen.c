@@ -18,7 +18,7 @@ static int screenWidth, screenHeight;
 Button startButton;
 static int screenEnded;
 
-void InitTitleScreen(void) 
+void title_screen_init(void) 
 {
     screenEnded = 0;
     frameCount = 0;
@@ -53,7 +53,7 @@ void InitTitleScreen(void)
     printf("INFO: Loaded title screen sucessfully\n");
 }
 
-void UpdateTitleScreen(void) 
+void title_screen_update(void) 
 {
     rotation += 0.5;
     if (rotation >= 360.0f)
@@ -72,7 +72,7 @@ void UpdateTitleScreen(void)
     frameCount++;
 }
 
-void DrawTitleScreen(void) 
+void title_screen_draw(void) 
 {
     DrawRectangle(0, 0, screenWidth, screenHeight, RAYWHITE); // background
     DrawCircleSector(center, (float) screenHeight / 2, 0.0f + rotation, 90.0f + rotation, 20, GRAY);
@@ -96,13 +96,13 @@ void DrawTitleScreen(void)
     }
 }
 
-void UnloadTitleScreen(void) 
+void title_screen_unload(void) 
 {
     UnloadFont(titleScreenFont);
     printf("Unloaded Title Screen\n");
 }
 
-int TitleScreenEnded(void)
+int title_screen_ended(void)
 {
     return screenEnded;
 }

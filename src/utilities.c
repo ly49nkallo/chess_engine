@@ -1,4 +1,8 @@
+#include "raylib.h"
+#include "stdlib.h"
+#include "stdio.h"
 #include "utilities.h"
+#include "chess_engine.h"
 
 int isOnButton(int x, int y, Button* button) 
 {
@@ -8,7 +12,3 @@ int isOnButton(int x, int y, Button* button)
 }
 
 
-PrintBoardInTerminal_FEN(const char* FEN_string)
-{
-    
-}

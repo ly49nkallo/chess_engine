@@ -5,18 +5,18 @@ typedef enum ScreenState {MENU=1, GAME} ScreenState;
 
 
 // Title Screen
-void InitTitleScreen(void);
-void UpdateTitleScreen(void);
-void DrawTitleScreen(void);
-void UnloadTitleScreen(void);
-int TitleScreenEnded(void);
+void title_screen_init(void);
+void title_screen_update(void);
+void title_screen_draw(void);
+void title_screen_unload(void);
+int title_screen_ended(void);
 
 // Game Screen
-void InitGameScreen(void);
-void UpdateGameScreen(void);
-void DrawGameScreen(void);
-void UnloadGameScreen(void);
-int GameScreenEnded(void);
+void game_screen_init(void);
+void game_screen_update(void);
+void game_screen_draw(void);
+void game_screen_unload(void);
+int game_screen_ended(void);
 
 
 #endif // CE_SCREENS_H
