@@ -84,7 +84,7 @@ void game_screen_draw(void)
     // ranks
     for (i = 0; i < 8; i++) {
         *symb = (char)*(ranks + i);
-        *(symb + 1) = '\n'; // terminate string
+        *(symb + 1) = '\0'; // terminate string
         Vector2 symbDims = MeasureTextEx(boardTextFont, symb, 20, 5); 
         symbolPosition.x = boardPosition.x - tileWidth/2 - symbDims.x/2;
         symbolPosition.y = boardPosition.y + tileWidth/2 - symbDims.y/2 + (tileWidth * i);
@@ -100,7 +100,7 @@ void game_screen_draw(void)
     // files
     for (i = 0; i < 8; i++) {
         *symb = (char)*(files + i);
-        *(symb + 1) = '\n'; // terminate string
+        *(symb + 1) = '\0'; // terminate string
         Vector2 symbDims = MeasureTextEx(boardTextFont, symb, 20, 5); 
         symbolPosition.x = boardPosition.x - tileWidth/2 - symbDims.x/2 + (tileWidth * i) + tileWidth;
         symbolPosition.y = boardPosition.y + boardHeight + tileWidth/2 - symbDims.y/2 ;
