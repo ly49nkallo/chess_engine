@@ -1,4 +1,4 @@
-# C Coding Style Conventions
+# C Coding Style Conventions for RAYLIB
 
 Code element | Convention | Example
 --- | :---: | ---

@@ -1,11 +1,11 @@
 #include "utilities.h"
 #include "chess_engine.h"
+
 ///@file chess_engine.c
 ///@brief Code that handles the logic and execution of a legal game of chess
 
 /// @brief prints a ChessBoard in the terminal
 /// @param board : A pointer to an empty chess board
-
 void chess_board_init(ChessBoard* board)
 {
     board->bitmasks = malloc(sizeof(uint64_t) * 6);
@@ -37,12 +37,20 @@ void print_board_in_terminal(ChessBoard* board)
           A B C D E F G H
     */
     int i,j;
-    int piece;
-    for (i = 0; i < 8; i++) // for each line
+    if (board->white_turn)
+        printf("White to play\n\n");
+    else 
+        printf("Black to play\n\n");
+
+    for (i = 7; i >= 0; i--) // for each rank
     {
         printf("|");
-        for (j = 0; j < 8; j++) 
+        for (j = 0; j <= 7; j++) // for each file
         {
+            int index = get_id_from_rank_file(i, j);
+            int piece = board->piece_list[index];
+            char symb = piece_id_to_char(piece);
+            printf("%c", symb);
             printf("|");
         }
     }
@@ -134,14 +142,16 @@ void generate_board_from_FEN(ChessBoard* board, const char* FEN_string)
             }
             else if (FEN_string[i] == '/') {
                 r--;
-                if (r == UINT_MAX) {printf("ERROR: FEN decode failed. FEN: %s\n", FEN_string); exit(1);}
+                int line = __LINE__ + 1;
+                if (r == UINT_MAX) {printf("ERROR %d: FEN decode failed. FEN: %s\n", line, FEN_string); exit(1);}
                 j = r * 8;
             }
             else if (FEN_string[i] == ' ') {
                 state ++;
             }
             else {
-                if (j > r * 8 + 7) {printf("ERROR: FEN decode failed. FEN: %s\n", FEN_string); exit(1);}
+                int line = __LINE__ + 1; 
+                if (j > r * 8 + 7) {printf("ERROR %d: FEN decode failed. FEN: %s\n", line, FEN_string); exit(1);}
                 int piece_id = create_piece_id(FEN_string[i]);
                 board->piece_list[j] = piece_id;
                 board->bitmasks[piece_id & 0b111] += (1 << j);
@@ -157,7 +167,9 @@ void generate_board_from_FEN(ChessBoard* board, const char* FEN_string)
 
             }
             else {
-                printf("ERROR: Turn-to-play decode failed. Got %c. FEN: %s\n", FEN_string[i], FEN_string);
+                throw_error(__LINE__, __FILE__, "Turn-to-play decode failed. Got '%c'. FEN: %s\n", FEN_string[i], FEN_string);
+                // int line = __LINE__ + 1;
+                // printf("ERROR %d: Turn-to-play decode failed. Got '%c'. FEN: %s\n", line, FEN_string[i], FEN_string);
                 exit(1);
             }
         }
