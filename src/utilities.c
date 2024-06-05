@@ -10,14 +10,6 @@ int isOnButton(int x, int y, Button* button)
 
 void throw_error(int line_number, const char* file_name, const char* message_format, ...)
 {
-    int cnt = 0;
-    int i = 0;
-    while (message_format[i] != '\0') {
-        if (message_format[i] == '%') 
-            cnt ++;
-        i++;
-    }
-
     va_list ptr;
     va_start(ptr, message_format);
     char* buffer = malloc(strlen(message_format) + ERROR_BUFFER_SIZE + cnt * 4);
