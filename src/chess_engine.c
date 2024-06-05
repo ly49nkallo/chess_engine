@@ -8,8 +8,8 @@
 
 void chess_board_init(ChessBoard* board)
 {
-    board->bitmasks = MemAlloc(sizeof(uint64_t) * 6);
-    board->piece_list = MemAlloc(sizeof(uint16_t) * 8 * 4);
+    board->bitmasks = malloc(sizeof(uint64_t) * 6);
+    board->piece_list = malloc(sizeof(uint16_t) * 64);
     board->castling_avaliablility = 0;
     board->black = 0;
     board->white = 0;
@@ -19,8 +19,8 @@ void chess_board_init(ChessBoard* board)
 }
 void chess_board_destroy(ChessBoard* board)
 {
-    MemFree(board->bitmasks);
-    MemFree(board->piece_list);
+    free(board->bitmasks);
+    free(board->piece_list);
 }
 
 void print_board_in_terminal(ChessBoard* board)
@@ -38,7 +38,6 @@ void print_board_in_terminal(ChessBoard* board)
     */
     int i,j;
     int piece;
-    abort();
     for (i = 0; i < 8; i++) // for each line
     {
         printf("|");
@@ -68,7 +67,7 @@ int create_piece_id(const char piece) // From FEN version of piece ID
         color_mask = 0b01000;
     else {
         color_mask = 0b10000;
-        _piece -= 32;
+        _piece += 32;
     }
     int rank_id;
     switch(_piece){
@@ -78,7 +77,7 @@ int create_piece_id(const char piece) // From FEN version of piece ID
         case 'r': rank_id = ROOK;   break;
         case 'q': rank_id = QUEEN;  break;
         case 'k': rank_id = KING;   break;
-        default: printf("Unknown piece %c", _piece); exit(1);
+        default: printf("ERROR: Unknown piece %c\n", _piece); exit(1);
     }
     return rank_id | color_mask;
 }
@@ -111,7 +110,7 @@ char piece_id_to_char(const int piece)
         case KING:   return 'k'; break;
         }
     }
-    printf("Failed to match piece with id: %d", piece);
+    printf("ERROR: Failed to match piece with id: %d\n", piece);
     exit(1);
 }
 
@@ -122,28 +121,47 @@ char piece_id_to_char(const int piece)
 void generate_board_from_FEN(ChessBoard* board, const char* FEN_string) 
 {
     //TODO
-    int i = 0; // count FEN string index
-    int r = 8; // current rank
-    int j = r * 8 - 7; // count board index starting at A8
-    int state = 0;
-    while (FEN_string[i] != '\0' && r > 0)
+    unsigned int i = 0; // count FEN string index
+    unsigned int r = 7; // current rank (zero-indexed)
+    unsigned int j = r * 8; // count board index starting at A8
+    unsigned int state = 0;
+    while (FEN_string[i] != '\0')
     {
-        if (state == 0) {
+        if (state == 0) { // piece arrangement
+            printf("%c", FEN_string[i]);
             if (atoi(&FEN_string[i])) {// is numeric
                 j += atoi(&FEN_string[i]);
             }
             else if (FEN_string[i] == '/') {
                 r--;
-                j = r * 8 - 7;
+                if (r == UINT_MAX) {printf("ERROR: FEN decode failed. FEN: %s\n", FEN_string); exit(1);}
+                j = r * 8;
             }
             else if (FEN_string[i] == ' ') {
                 state ++;
             }
             else {
-                //TODO
+                if (j > r * 8 + 7) {printf("ERROR: FEN decode failed. FEN: %s\n", FEN_string); exit(1);}
+                int piece_id = create_piece_id(FEN_string[i]);
+                board->piece_list[j] = piece_id;
+                board->bitmasks[piece_id & 0b111] += (1 << j);
+                uint64_t* color_mask = ((piece_id & 0b11000) == 0b10000) ? &(board->white) :&(board->black);
+                *color_mask += (1 << j);
+                j ++;
             }
         }
-        i++;
+        else if (state == 1) { // turn to play
+            if (FEN_string[i] == 'w') {
+            }
+            else if (FEN_string[i] == 'b') {
+
+            }
+            else {
+                printf("ERROR: Turn-to-play decode failed. Got %c. FEN: %s\n", FEN_string[i], FEN_string);
+                exit(1);
+            }
+        }
+        i ++;
     }
 }
 
@@ -151,9 +169,9 @@ void generate_board_from_FEN(ChessBoard* board, const char* FEN_string)
 /// @param FEN_string the FEN string
 void print_board_in_terminal_from_FEN(const char* FEN_string)
 {
-    ChessBoard* board = MemAlloc(sizeof(ChessBoard));
+    ChessBoard* board = malloc(sizeof(ChessBoard));
     if (board == (void*) 0) {printf("ERROR: Failed to allocate memory"); exit(1);}
     generate_board_from_FEN(board, FEN_string);
     print_board_in_terminal(board);
-    MemFree(board);
+    free(board);
 }

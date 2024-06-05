@@ -6,11 +6,12 @@
 #include "stdlib.h"
 #include "string.h"
 #include "stdint.h"
+#include "stdbool.h"
 #include "inttypes.h"
 
-#include "raylib.h"
+// #include "raylib.h"
 
-#define FEN_STARTING_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#define FEN_STARTING_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 typedef struct ChessBoard {
     // implemented using bitboards b/c im like that fr
