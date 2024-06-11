@@ -1,15 +1,17 @@
 #include "raylib.h"
 #include "screens.h"
+#include "utilities.h"
 #include <stdio.h>
 
 #if defined(PLATFORM_WEB)
-    #error Web is not supported
+    #error "Web is not supported"
 #endif
 
 static ScreenState currentScreenState;
 
 static int screenWidth = 800;
 static int screenHeight = 550;
+static ScreenState startingScreenState = GAME;
 
 static void InitApp(void);         // Initialize App
 static void UpdateFrame(void);       // Update Frame (one frame)
@@ -41,8 +43,8 @@ int main(void)
 // Initialize game variables
 void InitApp(void)
 {
-    currentScreenState = MENU;
-    ChangeScreen(MENU);
+    currentScreenState = startingScreenState;
+    ChangeScreen(startingScreenState);
 }
 
 // Update game (one frame)
@@ -60,7 +62,7 @@ void UpdateFrame(void)
                 ChangeScreen(game_screen_ended());
             break;
         default:
-            printf("ERROR: Unhandled Screen Update %d\n", currentScreenState);
+            throw_error(__LINE__, __FILE__, "ERROR: Unhandled Screen Update %d\n", currentScreenState);
             break;
     }
 }
