@@ -12,12 +12,13 @@ void throw_error(int line_number, const char* file_name, const char* message_for
 {
     va_list ptr;
     va_start(ptr, message_format);
-    char* buffer = malloc(strlen(message_format) + ERROR_BUFFER_SIZE + cnt * 4);
-    if (buffer == NULL) {printf("ERROR: Failed to allocate memory for error message\n"); exit(1);}
+    //char* buffer = malloc(strlen(message_format) + ERROR_BUFFER_SIZE);
+    //if (buffer == NULL) {printf("ERROR: Failed to allocate memory for error message\n"); exit(1);}
     printf("\nERROR: ");
-    vsprintf_s(buffer, strlen(message_format) + ERROR_BUFFER_SIZE + cnt * 4, message_format, ptr);
-    printf(buffer);
+    vprintf(message_format, ptr);
+    // printf(buffer);
     printf(" (Line %d, File %s)\n", line_number, file_name);
-    free(buffer);
+    //free(buffer);
+    va_end(ptr);
     exit(1);
 }

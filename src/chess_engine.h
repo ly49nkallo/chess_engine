@@ -9,13 +9,11 @@
 #include "stdbool.h"
 #include "inttypes.h"
 
-// #include "raylib.h"
-
 #define FEN_STARTING_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 typedef struct ChessBoard {
     // implemented using bitboards b/c im like that fr
-    uint64_t* bitmasks; // indexed by the rank_id enum
+    uint64_t* bitboards; // indexed by the rank_id enum
     uint16_t* piece_list; 
     uint16_t castling_avaliablility; // 4 BITS KQkq : (white king-side, white queen-side, black king-side, black queen-side)
     uint64_t black;

@@ -8,7 +8,7 @@
 /// @param board : A pointer to an empty chess board
 void chess_board_init(ChessBoard* board)
 {
-    board->bitmasks = malloc(sizeof(uint64_t) * 6);
+    board->bitboards = malloc(sizeof(uint64_t) * 6);
     board->piece_list = malloc(sizeof(uint16_t) * 64);
     board->castling_avaliablility = 0;
     board->black = 0;
@@ -19,19 +19,19 @@ void chess_board_init(ChessBoard* board)
 }
 void chess_board_destroy(ChessBoard* board)
 {
-    free(board->bitmasks);
+    free(board->bitboards);
     free(board->piece_list);
 }
 
 void print_board_in_terminal(ChessBoard* board)
 {
-    /* 
-       8 |r|n|b|q|k|b|n|r| 
+    /*
+       8 |r|n|b|q|k|b|n|r|
        7 |p|p|p|p|p|p|p|p|
        6 | | | | | | | | |
-       5 | | | | | | | | | 
-       4 | | | | | | | | | 
-       3 | | | | | | | | | 
+       5 | | | | | | | | |
+       4 | | | | | | | | |
+       3 | | | | | | | | |
        2 |P|P|P|P|P|P|P|P|
        1 |R|N|B|Q|K|B|N|R|
           A B C D E F G H
@@ -39,7 +39,7 @@ void print_board_in_terminal(ChessBoard* board)
     int i,j;
     if (board->white_turn)
         printf("White to play\n\n");
-    else 
+    else
         printf("Black to play\n\n");
 
     for (i = 7; i >= 0; i--) // for each rank
@@ -64,9 +64,9 @@ int get_id_from_rank_file(const int rank, const int file)
 {
     return rank * 8 + file;
 }
-/// @brief 
-/// @param piece 
-/// @return 
+/// @brief generates the CCRRR piece ID given it's FEN character representation
+/// @param piece the FEN character representation
+/// @return (int) the piece ID
 int create_piece_id(const char piece) // From FEN version of piece ID
 {
     int color_mask;
@@ -141,36 +141,37 @@ void generate_board_from_FEN(ChessBoard* board, const char* FEN_string)
                 j += atoi(&FEN_string[i]);
             }
             else if (FEN_string[i] == '/') {
+                if (r == 0)
+                    throw_error(__LINE__, __FILE__, "ERROR: FEN decode failed. FEN: %s\n",  FEN_string);
                 r--;
-                int line = __LINE__ + 1;
-                if (r == UINT_MAX) {printf("ERROR %d: FEN decode failed. FEN: %s\n", line, FEN_string); exit(1);}
                 j = r * 8;
             }
             else if (FEN_string[i] == ' ') {
                 state ++;
+                i ++;
+                continue;
             }
             else {
-                int line = __LINE__ + 1; 
-                if (j > r * 8 + 7) {printf("ERROR %d: FEN decode failed. FEN: %s\n", line, FEN_string); exit(1);}
-                int piece_id = create_piece_id(FEN_string[i]);
-                board->piece_list[j] = piece_id;
-                board->bitmasks[piece_id & 0b111] += (1 << j);
-                uint64_t* color_mask = ((piece_id & 0b11000) == 0b10000) ? &(board->white) :&(board->black);
-                *color_mask += (1 << j);
-                j ++;
+                    if (j > r * 8 + 7)
+                        throw_error(__LINE__, __FILE__, "FEN decode failed. Tried to index %d on rank %d. FEN: %s\n", j, r, FEN_string);
+                    int piece_id = create_piece_id(FEN_string[i]);
+                    board->piece_list[j] = piece_id;
+                    board->bitboards[piece_id & 0b111] += (1 << j);
+                    uint64_t* color_mask = ((piece_id & 0b11000) == 0b10000) ? &(board->white) :&(board->black);
+                    *color_mask += (1 << j);
+                    j ++;
             }
         }
         else if (state == 1) { // turn to play
+            printf("State 1");
             if (FEN_string[i] == 'w') {
+                printf("w\n");
             }
             else if (FEN_string[i] == 'b') {
-
+                printf("b\n");
             }
             else {
                 throw_error(__LINE__, __FILE__, "Turn-to-play decode failed. Got '%c'. FEN: %s\n", FEN_string[i], FEN_string);
-                // int line = __LINE__ + 1;
-                // printf("ERROR %d: Turn-to-play decode failed. Got '%c'. FEN: %s\n", line, FEN_string[i], FEN_string);
-                exit(1);
             }
         }
         i ++;
