@@ -11,6 +11,7 @@
 
 #define CE_FEN_STARTING_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
+/// @brief The structure containing all information about a chess board position
 typedef struct ChessBoard {
     // implemented using bitboards b/c im like that fr
     uint64_t* bitboards; // indexed by the rank_id enum
