@@ -9,7 +9,7 @@
 #include "stdbool.h"
 #include "inttypes.h"
 
-#define FEN_STARTING_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#define CE_FEN_STARTING_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 typedef struct ChessBoard {
     // implemented using bitboards b/c im like that fr
@@ -27,16 +27,18 @@ typedef struct ChessBoard {
     
 } ChessBoard;
 void chess_board_init(ChessBoard* board);
+void chess_board_destroy(ChessBoard* board);
 
 enum rank_id {EMPTY = 0, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING}; // KING = 6
-
+enum color_id {WHITE = 0b10000, BLACK = 0b01000};
 // Utilities //
 
 void print_board_in_terminal(ChessBoard* board);
-int get_id_from_rank_file(const int rank, const int file);
-int create_piece_id(const char piece);
+inline int get_id_from_rank_file(const int rank, const int file);
+int char_to_piece_id(const char piece);
 char piece_id_to_char(const int piece);
 void generate_board_from_FEN(ChessBoard* board, const char* FEN_string);
 void print_board_in_terminal_from_FEN(const char* FEN_string);
+void chess_board_add_piece(ChessBoard* board, const int rank, const int file, const int piece_id);
 
 #endif

@@ -4,12 +4,14 @@
 ///@file chess_engine.c
 ///@brief Code that handles the logic and execution of a legal game of chess
 
-/// @brief prints a ChessBoard in the terminal
-/// @param board : A pointer to an empty chess board
+/// @brief constructor for new ChessBoard object
+/// @param board 
 void chess_board_init(ChessBoard* board)
 {
     board->bitboards = malloc(sizeof(uint64_t) * 6);
+    memset(board->bitboards, 0, sizeof(uint64_t) * 6);
     board->piece_list = malloc(sizeof(uint16_t) * 64);
+    memset(board->piece_list, 0, sizeof(uint16_t) * 64);
     board->castling_avaliablility = 0;
     board->black = 0;
     board->white = 0;
@@ -17,12 +19,16 @@ void chess_board_init(ChessBoard* board)
     board->move_counter = 0;
     board->fifty_move_counter = 0;
 }
+/// @brief destructor for ChessBoard object
+/// @param board 
 void chess_board_destroy(ChessBoard* board)
 {
     free(board->bitboards);
     free(board->piece_list);
 }
 
+/// @brief prints a ChessBoard in the terminal
+/// @param board : A pointer to an empty chess board
 void print_board_in_terminal(ChessBoard* board)
 {
     /*
@@ -44,7 +50,7 @@ void print_board_in_terminal(ChessBoard* board)
 
     for (i = 7; i >= 0; i--) // for each rank
     {
-        printf("|");
+        printf("%d |", i);
         for (j = 0; j <= 7; j++) // for each file
         {
             int index = get_id_from_rank_file(i, j);
@@ -53,17 +59,20 @@ void print_board_in_terminal(ChessBoard* board)
             printf("%c", symb);
             printf("|");
         }
+        printf("\n");
     }
+    printf("   a b c d e f g h ");
 }
 
 /// @brief get the corresponding index of a tile given rank and file
 /// @param rank zero indexed rank
 /// @param file zero indexed file
 /// @return index of tile
-int get_id_from_rank_file(const int rank, const int file)
+inline int get_id_from_rank_file(const int rank, const int file)
 {
     return rank * 8 + file;
 }
+
 /// @brief generates the CCRRR piece ID given it's FEN character representation
 /// @param piece the FEN character representation
 /// @return (int) the piece ID
@@ -90,7 +99,6 @@ int create_piece_id(const char piece) // From FEN version of piece ID
     return rank_id | color_mask;
 }
 
-
 /// @brief takes the integer denoting the piece and returns the FEN symbol
 /// @param piece integer representing the piece's identifier
 /// @return symbol corresponding to FEN notation
@@ -99,23 +107,25 @@ char piece_id_to_char(const int piece)
     if (piece & 0b10000) //white
     {
         switch(piece & 0b111) {
-        case PAWN:   return 'P'; break;
-        case KNIGHT: return 'N'; break;
-        case BISHOP: return 'B'; break;
-        case ROOK:   return 'R'; break;
-        case QUEEN:  return 'Q'; break;
-        case KING:   return 'K'; break;
+            case EMPTY: return ' '; break;
+            case PAWN:   return 'P'; break;
+            case KNIGHT: return 'N'; break;
+            case BISHOP: return 'B'; break;
+            case ROOK:   return 'R'; break;
+            case QUEEN:  return 'Q'; break;
+            case KING:   return 'K'; break;
         }
     }
     else
     {
         switch(piece & 0b111) {
-        case PAWN:   return 'p'; break;
-        case KNIGHT: return 'n'; break;
-        case BISHOP: return 'b'; break;
-        case ROOK:   return 'r'; break;
-        case QUEEN:  return 'q'; break;
-        case KING:   return 'k'; break;
+            case EMPTY: return ' '; break;
+            case PAWN:   return 'p'; break;
+            case KNIGHT: return 'n'; break;
+            case BISHOP: return 'b'; break;
+            case ROOK:   return 'r'; break;
+            case QUEEN:  return 'q'; break;
+            case KING:   return 'k'; break;
         }
     }
     printf("ERROR: Failed to match piece with id: %d\n", piece);
@@ -136,7 +146,6 @@ void generate_board_from_FEN(ChessBoard* board, const char* FEN_string)
     while (FEN_string[i] != '\0')
     {
         if (state == 0) { // piece arrangement
-            printf("%c", FEN_string[i]);
             if (atoi(&FEN_string[i])) {// is numeric
                 j += atoi(&FEN_string[i]);
             }
@@ -163,12 +172,13 @@ void generate_board_from_FEN(ChessBoard* board, const char* FEN_string)
             }
         }
         else if (state == 1) { // turn to play
-            printf("State 1");
             if (FEN_string[i] == 'w') {
                 printf("w\n");
+                state ++;
             }
             else if (FEN_string[i] == 'b') {
                 printf("b\n");
+                state ++;
             }
             else {
                 throw_error(__LINE__, __FILE__, "Turn-to-play decode failed. Got '%c'. FEN: %s\n", FEN_string[i], FEN_string);
@@ -176,6 +186,7 @@ void generate_board_from_FEN(ChessBoard* board, const char* FEN_string)
         }
         i ++;
     }
+    printf("\n\n");
 }
 
 /// @brief prints the board corresponding to the FEN string in the terminal window
@@ -187,4 +198,35 @@ void print_board_in_terminal_from_FEN(const char* FEN_string)
     generate_board_from_FEN(board, FEN_string);
     print_board_in_terminal(board);
     free(board);
+}
+
+/// @brief Add a new piece to a chess to the chess board and update bitboards and piece list accordingly
+/// @param board 
+/// @param rank
+/// @param file
+/// @param piece_id integer representation of a piece CCRRR
+void chess_board_add_piece(ChessBoard* board, const int rank, const int file, const int piece_id) {
+    // Add to bitboards
+    if ((piece_id & 0b11000) == WHITE) {
+        board->white += (1 << get_id_from_rank_file(rank, file));
+    }
+    else {
+        board->black += (1 << get_id_from_rank_file(rank, file));
+    }
+    int piece_rank = (piece_id & 0b111);
+    board->bitboards[piece_rank] += (1 << get_id_from_rank_file(rank, file));
+
+    // Add to piece list
+    board->piece_list[get_id_from_rank_file(rank, file)] = piece_id;
+}
+
+/// @brief sets a tile of the ChessBoard to the specifid piece
+/// @param board pointer to the board
+/// @param rank 
+/// @param file 
+/// @param piece_symbol indicated in FEN notation
+void chess_board_set_tile(ChessBoard* board, const int rank, const int file, const char piece_symbol) {
+    int piece_id = char_to_piece_id(piece_symbol);
+    chess_board_add_piece(board, rank, file, piece_id);
+    // Kinda stupid. Might remoe later. 
 }

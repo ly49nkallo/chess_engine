@@ -22,3 +22,7 @@ void throw_error(int line_number, const char* file_name, const char* message_for
     va_end(ptr);
     exit(1);
 }
+
+void throw_not_implemented_error(int line_number, const char* file_name) {
+    throw_error(line_number, file_name, "Not Implemented Yet!");
+}
