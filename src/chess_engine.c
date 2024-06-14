@@ -1,6 +1,8 @@
 #include "utilities.h"
 #include "chess_engine.h"
 
+#define ID_FROM_RANK_FILE(r, f) (r * 8 + f)
+
 ///@file chess_engine.c
 ///@brief Code that handles the logic and execution of a legal game of chess
 
@@ -53,7 +55,7 @@ void print_board_in_terminal(ChessBoard* board)
         printf("%d |", i);
         for (j = 0; j <= 7; j++) // for each file
         {
-            int index = get_id_from_rank_file(i, j);
+            int index = ID_FROM_RANK_FILE(i, j);
             int piece = board->piece_list[index];
             char symb = piece_id_to_char(piece);
             printf("%c", symb);
@@ -68,15 +70,15 @@ void print_board_in_terminal(ChessBoard* board)
 /// @param rank zero indexed rank
 /// @param file zero indexed file
 /// @return index of tile
-inline int get_id_from_rank_file(const int rank, const int file)
-{
-    return rank * 8 + file;
-}
+// int ID_FROM_RANK_FILE(const int rank, const int file)
+// {
+//     return rank * 8 + file;
+// }
 
 /// @brief generates the CCRRR piece ID given it's FEN character representation
 /// @param piece the FEN character representation
 /// @return (int) the piece ID
-int create_piece_id(const char piece) // From FEN version of piece ID
+int char_to_piece_id(const char piece) // From FEN version of piece ID
 {
     int color_mask;
     char _piece = piece;
@@ -104,32 +106,20 @@ int create_piece_id(const char piece) // From FEN version of piece ID
 /// @return symbol corresponding to FEN notation
 char piece_id_to_char(const int piece)
 {
-    if (piece & 0b10000) //white
-    {
-        switch(piece & 0b111) {
-            case EMPTY: return ' '; break;
-            case PAWN:   return 'P'; break;
-            case KNIGHT: return 'N'; break;
-            case BISHOP: return 'B'; break;
-            case ROOK:   return 'R'; break;
-            case QUEEN:  return 'Q'; break;
-            case KING:   return 'K'; break;
-        }
+    if ((piece & 0b111) == EMPTY) return ' ';
+    char c = 0;
+    switch(piece & 0b111) { 
+        case PAWN:   c = 'P'; break;
+        case KNIGHT: c = 'N'; break;
+        case BISHOP: c = 'B'; break;
+        case ROOK:   c = 'R'; break;
+        case QUEEN:  c = 'Q'; break;
+        case KING:   c = 'K'; break;
     }
-    else
-    {
-        switch(piece & 0b111) {
-            case EMPTY: return ' '; break;
-            case PAWN:   return 'p'; break;
-            case KNIGHT: return 'n'; break;
-            case BISHOP: return 'b'; break;
-            case ROOK:   return 'r'; break;
-            case QUEEN:  return 'q'; break;
-            case KING:   return 'k'; break;
-        }
-    }
-    printf("ERROR: Failed to match piece with id: %d\n", piece);
-    exit(1);
+    if (c == 0) 
+        throw_error(__LINE__, __FILE__, "ERROR: Failed to match piece with id: %d\n", piece);
+
+    return c + (((piece & 0b11000) == BLACK) ? 32 : 0); // switch for white and black
 }
 
 /// @brief generate board from FEN string
@@ -163,11 +153,11 @@ void generate_board_from_FEN(ChessBoard* board, const char* FEN_string)
             else {
                     if (j > r * 8 + 7)
                         throw_error(__LINE__, __FILE__, "FEN decode failed. Tried to index %d on rank %d. FEN: %s\n", j, r, FEN_string);
-                    int piece_id = create_piece_id(FEN_string[i]);
+                    int piece_id = char_to_piece_id(FEN_string[i]);
                     board->piece_list[j] = piece_id;
-                    board->bitboards[piece_id & 0b111] += (1 << j);
+                    board->bitboards[piece_id & 0b111] += (1LL << j);
                     uint64_t* color_mask = ((piece_id & 0b11000) == 0b10000) ? &(board->white) :&(board->black);
-                    *color_mask += (1 << j);
+                    *color_mask += (1LL << j);
                     j ++;
             }
         }
@@ -208,16 +198,16 @@ void print_board_in_terminal_from_FEN(const char* FEN_string)
 void chess_board_add_piece(ChessBoard* board, const int rank, const int file, const int piece_id) {
     // Add to bitboards
     if ((piece_id & 0b11000) == WHITE) {
-        board->white += (1 << get_id_from_rank_file(rank, file));
+        board->white += (1LL << ID_FROM_RANK_FILE(rank, file));
     }
     else {
-        board->black += (1 << get_id_from_rank_file(rank, file));
+        board->black += (1LL << ID_FROM_RANK_FILE(rank, file));
     }
     int piece_rank = (piece_id & 0b111);
-    board->bitboards[piece_rank] += (1 << get_id_from_rank_file(rank, file));
+    board->bitboards[piece_rank] += (1 << ID_FROM_RANK_FILE(rank, file));
 
     // Add to piece list
-    board->piece_list[get_id_from_rank_file(rank, file)] = piece_id;
+    board->piece_list[ID_FROM_RANK_FILE(rank, file)] = piece_id;
 }
 
 /// @brief sets a tile of the ChessBoard to the specifid piece

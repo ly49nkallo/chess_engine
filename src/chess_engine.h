@@ -34,7 +34,6 @@ enum color_id {WHITE = 0b10000, BLACK = 0b01000};
 // Utilities //
 
 void print_board_in_terminal(ChessBoard* board);
-inline int get_id_from_rank_file(const int rank, const int file);
 int char_to_piece_id(const char piece);
 char piece_id_to_char(const int piece);
 void generate_board_from_FEN(ChessBoard* board, const char* FEN_string);
