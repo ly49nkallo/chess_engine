@@ -43,8 +43,8 @@ int main(void)
 // Initialize game variables
 void InitApp(void)
 {
-    currentScreenState = startingScreenState;
     ChangeScreen(startingScreenState);
+    currentScreenState = startingScreenState;
 }
 
 // Update game (one frame)
@@ -70,11 +70,11 @@ void UpdateFrame(void)
 // Handle Screen Transitions
 void ChangeScreen(ScreenState newScreenState) 
 {
-    if (&currentScreenState != (void*)0) // if currentScreenState is NULL
-        printf("Changing Screen from ID:%d to ID:%d\n", currentScreenState, newScreenState);
-
     if (currentScreenState == newScreenState)
-        printf("ERROR: Changing to already running screen state ID:%d\n", currentScreenState);
+        throw_error(__LINE__, __FILE__, "ERROR: Changing to already running screen state ID:%d\n", currentScreenState);
+
+    if (&currentScreenState != (void*)0) // if currentScreenState is NULL
+        printf("INFO: Changing Screen from ID:%d to ID:%d\n", currentScreenState, newScreenState);
 
     // Handle unloading previous screen
     switch(currentScreenState) {

@@ -26,3 +26,12 @@ void throw_error(int line_number, const char* file_name, const char* message_for
 void throw_not_implemented_error(int line_number, const char* file_name) {
     throw_error(line_number, file_name, "Not Implemented Yet!");
 }
+
+void print_once(const char* message_format, ...) {
+    va_list ptr;
+    va_start(ptr, message_format);
+    printf("\nINFO: ");
+    vprintf(message_format, ptr);
+    printf("\n");
+    va_end(ptr);
+}

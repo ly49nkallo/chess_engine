@@ -10,6 +10,7 @@
 #include "inttypes.h"
 
 #define CE_FEN_STARTING_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#define ID_FROM_RANK_FILE(r, f) (r * 8 + f)
 
 /// @brief The structure containing all information about a chess board position
 typedef struct ChessBoard {
@@ -31,7 +32,15 @@ void chess_board_init(ChessBoard* board);
 void chess_board_destroy(ChessBoard* board);
 
 enum rank_id {EMPTY = 0, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING}; // KING = 6
-enum color_id {WHITE = 0b10000, BLACK = 0b01000};
+enum color_id {TILE_WHITE = 0b10000, TILE_BLACK = 0b01000};
+
+typedef struct move_tag {
+    uint8_t from_rank;
+    uint8_t from_file;
+    uint8_t to_rank;
+    uint8_t to_file;
+    uint8_t castling;
+} Move;
 // Utilities //
 
 void print_board_in_terminal(ChessBoard* board);
