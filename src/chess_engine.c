@@ -65,15 +65,6 @@ void print_board_in_terminal(ChessBoard* board)
     printf("   a b c d e f g h ");
 }
 
-/// @brief get the corresponding index of a tile given rank and file
-/// @param rank zero indexed rank
-/// @param file zero indexed file
-/// @return index of tile
-// int ID_FROM_RANK_FILE(const int rank, const int file)
-// {
-//     return rank * 8 + file;
-// }
-
 /// @brief generates the CCRRR piece ID given it's FEN character representation
 /// @param piece the FEN character representation
 /// @return (int) the piece ID
@@ -215,7 +206,7 @@ void chess_board_add_piece(ChessBoard* board, const int rank, const int file, co
 /// @param to_rank 
 /// @param to_file 
 /// @return 1 if the move is a valid move and 0 if move is invalid
-int chess_board_move(int from_rank, int from_file, int to_rank, int to_file) {
+int chess_board_move(const int from, const int to) {
     return 0;
 }
 

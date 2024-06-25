@@ -6,20 +6,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define CE_WHITE_PAWN_TEX_FP "resources/pawn_template.png"
-#define CE_WHITE_KING_TEX_FP "resources/king_template.png"
-#define CE_NUM_PIECE_TEX 12
+#define SPRITE_WIDTH 45.0F
 
-static long frameCount;
-static int screenEnded;
-struct BoardTheme {
+/* LOCAL VARIABLES */
+static struct BoardTheme {
     Color backgroundColor;
     Color boardColorDark;
     Color boardColorLight;
     char* pieceFontName; // default, neo, ...
 };
-struct BoardTheme* currentBoardTheme;
-ChessBoard* currentBoard;
+static long frameCount;
+static int screenEnded;
+static struct BoardTheme* currentBoardTheme;
+static ChessBoard* currentBoard;
 static int boardHeight, boardWidth;
 static Vector2 boardPosition;
 static Vector2 tileSize;
@@ -27,6 +26,16 @@ static int whiteSideDown;
 static Font boardTextFont;
 static Texture2D spritesheet;
 
+/* METHODS */
+void game_screen_init(void);
+void game_screen_update(void);
+void render_tiles(void);
+void render_labels(void);
+void render_pieces(ChessBoard* board);
+void game_screen_draw(void);
+int game_screen_ended(void);
+
+/// @brief performed when game screen is transitioned to
 void game_screen_init(void) 
 {
     screenEnded = 0;
@@ -57,13 +66,14 @@ void game_screen_init(void)
 
     printf("INFO: Loaded Game Screen Successfully\n");
 }
-
+/// @brief performed once per frame
 void game_screen_update(void) 
 {
     frameCount++;
 }
-
-void render_tiles(void) {
+/// @brief render the colored tiles onto the screen
+void render_tiles(void) 
+{
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
     int tileWidth = boardWidth / 8;
@@ -80,7 +90,9 @@ void render_tiles(void) {
         }
     }
 }
-void render_labels(void) {
+/// @brief render the side labels (1-8, A-H) onto the screen
+void render_labels(void) 
+{
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
     int tileWidth = boardWidth / 8;
@@ -96,7 +108,7 @@ void render_labels(void) {
     // ranks
     int i;
     for (i = 0; i < 8; i++) {
-        *symb = (char)*(ranks + i);
+        *symb = (char)*(ranks + (7 - i));
         *(symb + 1) = '\0'; // terminate string
         Vector2 symbDims = MeasureTextEx(boardTextFont, symb, 20, 5); 
         symbolPosition.x = boardPosition.x - tileWidth/2 - symbDims.x/2;
@@ -122,15 +134,17 @@ void render_labels(void) {
         if ((symbolPosition.x <= 0 || symbolPosition.x >= screenWidth)
             || (symbolPosition.y <= 0 || symbolPosition.y >= screenHeight))
         {
-            printf("ERROR: Symbol Position is out of bounds POS:(%f, %f)\n", symbolPosition.x, symbolPosition.y);
-            exit(1);
+            throw_error(__LINE__, __FILE__, "ERROR: Symbol Position is out of bounds POS:(%f, %f)\n", symbolPosition.x, symbolPosition.y);
         }
         DrawTextEx(boardTextFont, symb, symbolPosition, 20, 5, BLACK);
     }
 
     MemFree(symb);
 }
-void render_pieces(ChessBoard* board) {
+/// @brief render the game pieces onto the screen
+/// @param board 
+void render_pieces(ChessBoard* board) 
+{
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
     int tileWidth = boardWidth / 8;
@@ -147,36 +161,43 @@ void render_pieces(ChessBoard* board) {
                 (float)tileWidth, (float)tileWidth
             };
             int piece = board->piece_list[ID_FROM_RANK_FILE(i, j)];
-            int color = ((piece & 0b11000) == 0b10000) ? 0 : 1; // 0: White, 1: Black
+            int color = ((piece & 0b11000) == TILE_WHITE) ? 0 : 1; // 0: White, 1: Black
             /*
             01, 02, 03, 04, 05, 06
             07, 08, 09, 10, 11, 12
             */
-            int idx = 0;
-            switch ((piece && 0b111)) {
-                case PAWN: idx = 6; break;
-                case KNIGHT: idx = 4; break;
-                case BISHOP: idx = 3; break;
-                case ROOK: idx = 5; break;
-                case QUEEN: idx = 2; break;
-                case KING: idx = 1; break;
+            int idx1 = 0;
+            switch ((piece & 0b111)) {
+                case PAWN: idx1 = 6; break;
+                case KNIGHT: idx1 = 4; break;
+                case BISHOP: idx1 = 3; break;
+                case ROOK: idx1 = 5; break;
+                case QUEEN: idx1 = 2; break;
+                case KING: idx1 = 1; break;
             };
-            idx = idx + (6 * color);
-            Rectangle source = {
-                i * 45.0f, j * 45.0f, 45.0f, 45.0f
-            };
-
-            DrawTexturePro(spritesheet, source, dest, origin, rotation, tint);
+            if (idx1) {
+                int idx2 = idx1 + (6 * color);
+                Rectangle source = {
+                    (idx1 - 1) * SPRITE_WIDTH, 
+                    (1 - color) * SPRITE_WIDTH, 
+                    SPRITE_WIDTH, 
+                    SPRITE_WIDTH
+                };
+                DrawTexturePro(spritesheet, source, dest, origin, rotation, tint);
+            }
         }
     }
 }
-void game_screen_draw(void) {
+/// @brief Render logic for game screen. Performed once per frame
+void game_screen_draw(void)
+{
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
     DrawRectangle(0, 0, screenWidth, screenHeight, RAYWHITE); // background
     render_tiles();
     render_labels();
     render_pieces(currentBoard);
+
 }
 void game_screen_unload(void) 
 {

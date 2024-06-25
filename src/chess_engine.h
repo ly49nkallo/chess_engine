@@ -16,14 +16,14 @@
 typedef struct ChessBoard {
     // implemented using bitboards b/c im like that fr
     uint64_t* bitboards; // indexed by the rank_id enum
-    uint16_t* piece_list; 
+    uint8_t* piece_list; 
     uint16_t castling_avaliablility; // 4 BITS KQkq : (white king-side, white queen-side, black king-side, black queen-side)
     uint64_t black;
     uint64_t white;
     bool white_turn; // 1: White turn, 0: Black turn
     uint16_t move_counter; // how many total half moves have been played
     uint16_t fifty_move_counter; // how many half move have been played since last capture or pawn move
-    //TODO En Passant
+    uint16_t en_passant; // 0-63 tile id, >=64 no move allowed
 
     // function pointers
     
@@ -41,7 +41,7 @@ typedef struct move_tag {
     uint8_t to_file;
     uint8_t castling;
 } Move;
-// Utilities //
+/* Utilities */
 
 void print_board_in_terminal(ChessBoard* board);
 int char_to_piece_id(const char piece);
