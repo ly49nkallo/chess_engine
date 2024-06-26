@@ -9,10 +9,10 @@
 /// @param board 
 void chess_board_init(ChessBoard* board)
 {
-    board->bitboards = malloc(sizeof(uint64_t) * 6);
-    memset(board->bitboards, 0, sizeof(uint64_t) * 6);
-    board->piece_list = malloc(sizeof(uint16_t) * 64);
-    memset(board->piece_list, 0, sizeof(uint16_t) * 64);
+    board->bitboards = malloc((sizeof board->bitboards) * 6);
+    memset(board->bitboards, 0, (sizeof board->bitboards) * 6);
+    board->piece_list = malloc((sizeof board->piece_list) * 64);
+    memset(board->piece_list, 0, (sizeof board->piece_list) * 64);
     board->castling_avaliablility = 0;
     board->black = 0;
     board->white = 0;
@@ -152,11 +152,9 @@ void generate_board_from_FEN(ChessBoard* board, const char* FEN_string)
         }
         else if (state == 1) { // turn to play
             if (FEN_string[i] == 'w') {
-                printf("w\n");
                 state ++;
             }
             else if (FEN_string[i] == 'b') {
-                printf("b\n");
                 state ++;
             }
             else {
@@ -165,7 +163,6 @@ void generate_board_from_FEN(ChessBoard* board, const char* FEN_string)
         }
         i ++;
     }
-    printf("\n\n");
 }
 
 /// @brief prints the board corresponding to the FEN string in the terminal window

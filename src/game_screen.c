@@ -6,7 +6,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define SPRITE_WIDTH 45.0F
+#define LOW_RES_SPRITESHEET_PATH "resources/640px-Chess_Pieces_Sprite.png"
+#define HIGH_RES_SPRITESHEET_PATH "resources/1024px-Chess_Pieces_Sprite.png"
 
 /* LOCAL VARIABLES */
 static struct BoardTheme {
@@ -19,12 +20,13 @@ static long frameCount;
 static int screenEnded;
 static struct BoardTheme* currentBoardTheme;
 static ChessBoard* currentBoard;
-static int boardHeight, boardWidth;
-static Vector2 boardPosition;
-static Vector2 tileSize;
+static int board_height, board_width;
+static Vector2 board_position;
 static int whiteSideDown;
 static Font boardTextFont;
 static Texture2D spritesheet;
+static int sprite_size;
+static int hovered_tile_idx;
 
 /* METHODS */
 void game_screen_init(void);
@@ -40,6 +42,7 @@ void game_screen_init(void)
 {
     screenEnded = 0;
     frameCount = 0L;
+    hovered_tile_idx = -1;
     // setup default board theme
     currentBoardTheme=MemAlloc(sizeof(struct BoardTheme));
     currentBoardTheme->backgroundColor = RAYWHITE;
@@ -49,15 +52,26 @@ void game_screen_init(void)
 
     whiteSideDown = 1; //Start with white side down
 
-    boardHeight = 8 * GetScreenHeight() / 10; // board will be 80% of the height of the screen
-    boardWidth = boardHeight; // Board is a square
-    boardPosition.x = (float)(GetScreenWidth() / 2 - boardWidth / 2); // Centred Board Position
-    boardPosition.y = (float)(GetScreenHeight() / 2 - boardHeight / 2);
+    board_height = 8 * GetScreenHeight() / 10; // board will be 80% of the height of the screen
+    board_width = board_height; // Board is a square
+    board_position.x = (float)(GetScreenWidth() / 2 - board_width / 2); // Centred Board Position
+    board_position.y = (float)(GetScreenHeight() / 2 - board_height / 2);
 
     boardTextFont = LoadFontEx("resources/Philosopher-Bold.ttf", 20, 0, 250); // for the annotations on the board
 
-    spritesheet = LoadTexture("resources/Chess_Pieces_Sprite.png");
-    printf("INFO: Spritesheet Loaded Sucessfully\n");
+    /* Load Spritesheet */
+    char* spritesheet_path;
+    Image low_res_spritesheet = LoadImage(LOW_RES_SPRITESHEET_PATH);
+    Image high_res_spritesheet = LoadImage(HIGH_RES_SPRITESHEET_PATH);
+    int screen_width = GetScreenWidth();
+    int screen_height = GetScreenHeight();
+    if (low_res_spritesheet.height / 2 < screen_height / 8)
+        spritesheet_path = HIGH_RES_SPRITESHEET_PATH;
+    else
+        spritesheet_path = LOW_RES_SPRITESHEET_PATH;
+    spritesheet = LoadTexture(spritesheet_path);
+    sprite_size = spritesheet.height / 2;
+    printf("INFO: Spritesheet %s Loaded Sucessfully\n", spritesheet_path);
 
     currentBoard = MemAlloc(sizeof(ChessBoard));
     if (currentBoard == NULL) throw_error(__LINE__, __FILE__, "Not enough RAM");
@@ -69,6 +83,19 @@ void game_screen_init(void)
 /// @brief performed once per frame
 void game_screen_update(void) 
 {
+    /* detect mouse over */
+    int mouse_x = GetMouseX();
+    int mouse_y = GetMouseY();
+    int tile_size = board_width / 8;
+    if (mouse_x > board_position.x && mouse_x < board_position.x + board_width 
+    && mouse_y > board_position.y && mouse_y < board_position.y + board_height) {
+        hovered_tile_idx = (mouse_x - (int)board_position.x) / tile_size +
+                (7 - ((mouse_y - (int)board_position.y) / tile_size)) * 8;
+        if (hovered_tile_idx > 63 || hovered_tile_idx < 0)
+            throw_error(__LINE__, __FILE__, "Hovered tile out of bounds. Got %d", hovered_tile_idx);
+    }
+    else
+        hovered_tile_idx = -1;
     frameCount++;
 }
 /// @brief render the colored tiles onto the screen
@@ -76,18 +103,26 @@ void render_tiles(void)
 {
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
-    int tileWidth = boardWidth / 8;
+    int tileWidth = board_width / 8;
     int i, j;
     for (i = 0; i < 8; i++) { // 1 to 8
         for (j = 0; j < 8; j++) { // A to G
             DrawRectangle(
-                (int)(boardPosition.x) + i * tileWidth, 
-                (int)(boardPosition.y) + j * tileWidth,
+                (int)(board_position.x) + i * tileWidth, 
+                (int)(board_position.y) + j * tileWidth,
                 tileWidth, tileWidth,
                 (((i + j) & 1) == whiteSideDown) ? currentBoardTheme->boardColorLight 
                                         : currentBoardTheme->boardColorDark
             );
         }
+    }
+    /* Render white box highlight over hovered tile */
+    const float line_width = 1.0f;
+    if (hovered_tile_idx > -1) {
+        Rectangle r = {board_position.x + (tileWidth * (hovered_tile_idx % 8)), 
+            board_position.y + (tileWidth * (7 - (hovered_tile_idx / 8))), 
+            tileWidth, tileWidth};
+        DrawRectangleLinesEx(r, line_width, WHITE);
     }
 }
 /// @brief render the side labels (1-8, A-H) onto the screen
@@ -95,7 +130,7 @@ void render_labels(void)
 {
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
-    int tileWidth = boardWidth / 8;
+    int tileWidth = board_width / 8;
     char* ranks = "12345678";
     char* files = "abcdefgh";
     char* symb = MemAlloc(sizeof(char) * 2);
@@ -111,8 +146,8 @@ void render_labels(void)
         *symb = (char)*(ranks + (7 - i));
         *(symb + 1) = '\0'; // terminate string
         Vector2 symbDims = MeasureTextEx(boardTextFont, symb, 20, 5); 
-        symbolPosition.x = boardPosition.x - tileWidth/2 - symbDims.x/2;
-        symbolPosition.y = boardPosition.y + tileWidth/2 - symbDims.y/2 + (tileWidth * i);
+        symbolPosition.x = board_position.x - tileWidth/2 - symbDims.x/2;
+        symbolPosition.y = board_position.y + tileWidth/2 - symbDims.y/2 + (tileWidth * i);
         symbolPosition.y += tileWidth/8; // Small Correction Needed For Some Reason ...
         if ((symbolPosition.x <= 0 || symbolPosition.x >= screenWidth)
             || (symbolPosition.y <= 0 || symbolPosition.y >= screenHeight))
@@ -127,8 +162,8 @@ void render_labels(void)
         *symb = (char)*(files + i);
         *(symb + 1) = '\0'; // terminate string
         Vector2 symbDims = MeasureTextEx(boardTextFont, symb, 20, 5); 
-        symbolPosition.x = boardPosition.x - tileWidth/2 - symbDims.x/2 + (tileWidth * i) + tileWidth;
-        symbolPosition.y = boardPosition.y + boardHeight + tileWidth/2 - symbDims.y/2 ;
+        symbolPosition.x = board_position.x - tileWidth/2 - symbDims.x/2 + (tileWidth * i) + tileWidth;
+        symbolPosition.y = board_position.y + board_height + tileWidth/2 - symbDims.y/2 ;
         symbolPosition.y += tileWidth/8; // Small Correction Needed For Some Reason ...
         // printf("DEBUG: Board Position: (%f, %f)", symbolPosition.x, symbolPosition.y);
         if ((symbolPosition.x <= 0 || symbolPosition.x >= screenWidth)
@@ -147,7 +182,7 @@ void render_pieces(ChessBoard* board)
 {
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
-    int tileWidth = boardWidth / 8;
+    int tileWidth = board_width / 8;
     Rectangle source = {0, 0, 200, 200};
     const Vector2 origin = {0, 0};
     const float rotation = 0;
@@ -156,8 +191,8 @@ void render_pieces(ChessBoard* board)
     for (i = 0; i < 8; i ++) { // rank
         for (j = 0; j < 8; j ++) { // file
             Rectangle dest = {
-                boardPosition.x + (float)(j * tileWidth), 
-                boardPosition.y + (float)(i * tileWidth), 
+                board_position.x + (float)(j * tileWidth), 
+                board_position.y + (float)(i * tileWidth), 
                 (float)tileWidth, (float)tileWidth
             };
             int piece = board->piece_list[ID_FROM_RANK_FILE(i, j)];
@@ -178,10 +213,10 @@ void render_pieces(ChessBoard* board)
             if (idx1) {
                 int idx2 = idx1 + (6 * color);
                 Rectangle source = {
-                    (idx1 - 1) * SPRITE_WIDTH, 
-                    (1 - color) * SPRITE_WIDTH, 
-                    SPRITE_WIDTH, 
-                    SPRITE_WIDTH
+                    (idx1 - 1) * sprite_size, 
+                    (1 - color) * sprite_size, 
+                    sprite_size, 
+                    sprite_size
                 };
                 DrawTexturePro(spritesheet, source, dest, origin, rotation, tint);
             }
