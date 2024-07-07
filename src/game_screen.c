@@ -1,21 +1,6 @@
-#include "raylib.h"
-#include "screens.h"
-#include "chess_engine.h"
-#include "utilities.h"
-
-#include <stdlib.h>
-#include <stdio.h>
-
-#define LOW_RES_SPRITESHEET_PATH "resources/640px-Chess_Pieces_Sprite.png"
-#define HIGH_RES_SPRITESHEET_PATH "resources/1024px-Chess_Pieces_Sprite.png"
+#include "game_screen.h"
 
 /* LOCAL VARIABLES */
-static struct BoardTheme {
-    Color backgroundColor;
-    Color boardColorDark;
-    Color boardColorLight;
-    char* pieceFontName; // default, neo, ...
-};
 static long frameCount;
 static int screenEnded;
 static struct BoardTheme* currentBoardTheme;
@@ -27,15 +12,8 @@ static Font boardTextFont;
 static Texture2D spritesheet;
 static int sprite_size;
 static int hovered_tile_idx;
+static int selected_tile_idx;
 
-/* METHODS */
-void game_screen_init(void);
-void game_screen_update(void);
-void render_tiles(void);
-void render_labels(void);
-void render_pieces(ChessBoard* board);
-void game_screen_draw(void);
-int game_screen_ended(void);
 
 /// @brief performed when game screen is transitioned to
 void game_screen_init(void) 
@@ -43,11 +21,15 @@ void game_screen_init(void)
     screenEnded = 0;
     frameCount = 0L;
     hovered_tile_idx = -1;
+    selected_tile_idx = -1;
     // setup default board theme
     currentBoardTheme=MemAlloc(sizeof(struct BoardTheme));
     currentBoardTheme->backgroundColor = RAYWHITE;
-    currentBoardTheme->boardColorDark = GRAY;
-    currentBoardTheme->boardColorLight = LIGHTGRAY;
+    currentBoardTheme->boardColorDark = (Color){110, 150, 70, 255};
+    currentBoardTheme->boardColorLight = (Color){240, 240, 200, 255};
+    currentBoardTheme->selectedColor = YELLOW;
+    currentBoardTheme->highlightColor = RED;
+    currentBoardTheme->arrowColor = ORANGE;
     currentBoardTheme->pieceFontName = "philosopher_bold";
 
     whiteSideDown = 1; //Start with white side down
@@ -83,7 +65,7 @@ void game_screen_init(void)
 /// @brief performed once per frame
 void game_screen_update(void) 
 {
-    /* detect mouse over */
+    /* Hover tile */
     int mouse_x = GetMouseX();
     int mouse_y = GetMouseY();
     int tile_size = board_width / 8;
@@ -94,8 +76,22 @@ void game_screen_update(void)
         if (hovered_tile_idx > 63 || hovered_tile_idx < 0)
             throw_error(__LINE__, __FILE__, "Hovered tile out of bounds. Got %d", hovered_tile_idx);
     }
-    else
+    else {
         hovered_tile_idx = -1;
+    }
+    /* Select tile */
+    if (hovered_tile_idx > -1 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if ((currentBoard->piece_list[hovered_tile_idx] & 0b111) != EMPTY) {
+            selected_tile_idx = hovered_tile_idx;        
+        }
+        else {
+            selected_tile_idx = -1;
+        }
+    }
+    /* Arrows */
+    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+
+    }
     frameCount++;
 }
 /// @brief render the colored tiles onto the screen
@@ -121,8 +117,15 @@ void render_tiles(void)
     if (hovered_tile_idx > -1) {
         Rectangle r = {board_position.x + (tileWidth * (hovered_tile_idx % 8)), 
             board_position.y + (tileWidth * (7 - (hovered_tile_idx / 8))), 
-            tileWidth, tileWidth};
+            (float) tileWidth, (float) tileWidth};
         DrawRectangleLinesEx(r, line_width, WHITE);
+    }
+    /* Render highlight over selected tile */
+    if (selected_tile_idx > -1) {
+        Rectangle r = {board_position.x + (tileWidth * (selected_tile_idx % 8)), 
+            board_position.y + (tileWidth * (7 - (selected_tile_idx / 8))), 
+            (float) tileWidth, (float) tileWidth};
+            DrawRectangleRec(r, YELLOW);
     }
 }
 /// @brief render the side labels (1-8, A-H) onto the screen
