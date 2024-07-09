@@ -4,7 +4,7 @@
 static long frameCount;
 static int screenEnded;
 static struct BoardTheme* currentBoardTheme;
-static ChessBoard* currentBoard;
+static ChessBoard* current_board;
 static int board_height, board_width;
 static Vector2 board_position;
 static int whiteSideDown;
@@ -13,7 +13,10 @@ static Texture2D spritesheet;
 static int sprite_size;
 static int hovered_tile_idx;
 static int selected_tile_idx;
+static int dragging_piece;
 
+
+void _render_piece(Rectangle dest, int piece);
 
 /// @brief performed when game screen is transitioned to
 void game_screen_init(void) 
@@ -55,20 +58,20 @@ void game_screen_init(void)
     sprite_size = spritesheet.height / 2;
     printf("INFO: Spritesheet %s Loaded Sucessfully\n", spritesheet_path);
 
-    currentBoard = MemAlloc(sizeof(ChessBoard));
-    if (currentBoard == NULL) throw_error(__LINE__, __FILE__, "Not enough RAM");
-    chess_board_init(currentBoard);
-    generate_board_from_FEN(currentBoard, CE_FEN_STARTING_POSITION);
+    current_board = MemAlloc(sizeof(ChessBoard));
+    if (current_board == NULL) throw_error(__LINE__, __FILE__, "Not enough RAM");
+    chess_board_init(current_board);
+    generate_board_from_FEN(current_board, CE_FEN_STARTING_POSITION);
 
     printf("INFO: Loaded Game Screen Successfully\n");
 }
 /// @brief performed once per frame
 void game_screen_update(void) 
 {
-    /* Hover tile */
     int mouse_x = GetMouseX();
     int mouse_y = GetMouseY();
     int tile_size = board_width / 8;
+    /* Hover tile */
     if (mouse_x > board_position.x && mouse_x < board_position.x + board_width 
     && mouse_y > board_position.y && mouse_y < board_position.y + board_height) {
         hovered_tile_idx = (mouse_x - (int)board_position.x) / tile_size +
@@ -81,8 +84,8 @@ void game_screen_update(void)
     }
     /* Select tile */
     if (hovered_tile_idx > -1 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        if ((currentBoard->piece_list[hovered_tile_idx] & 0b111) != EMPTY) {
-            selected_tile_idx = hovered_tile_idx;        
+        if ((current_board->piece_list[hovered_tile_idx] & 0b111) != EMPTY) {
+            selected_tile_idx = hovered_tile_idx;
         }
         else {
             selected_tile_idx = -1;
@@ -90,15 +93,20 @@ void game_screen_update(void)
     }
     /* Arrows */
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-
+        
     }
+    /* Drag piece */
+    if (selected_tile_idx > -1 && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        dragging_piece = 1;
+    }
+    else dragging_piece = 0;
     frameCount++;
 }
 /// @brief render the colored tiles onto the screen
 void render_tiles(void) 
 {
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
+    int screen_width = GetScreenWidth();
+    int screen_height = GetScreenHeight();
     int tileWidth = board_width / 8;
     int i, j;
     for (i = 0; i < 8; i++) { // 1 to 8
@@ -131,10 +139,10 @@ void render_tiles(void)
 /// @brief render the side labels (1-8, A-H) onto the screen
 void render_labels(void) 
 {
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
+    int screen_width = GetScreenWidth();
+    int screen_height = GetScreenHeight();
     int tileWidth = board_width / 8;
-    char* ranks = "12345678";
+    const char* ranks = "12345678";
     char* files = "abcdefgh";
     char* symb = MemAlloc(sizeof(char) * 2);
     if (symb == (void *)0)
@@ -152,8 +160,8 @@ void render_labels(void)
         symbolPosition.x = board_position.x - tileWidth/2 - symbDims.x/2;
         symbolPosition.y = board_position.y + tileWidth/2 - symbDims.y/2 + (tileWidth * i);
         symbolPosition.y += tileWidth/8; // Small Correction Needed For Some Reason ...
-        if ((symbolPosition.x <= 0 || symbolPosition.x >= screenWidth)
-            || (symbolPosition.y <= 0 || symbolPosition.y >= screenHeight))
+        if ((symbolPosition.x <= 0 || symbolPosition.x >= screen_width)
+            || (symbolPosition.y <= 0 || symbolPosition.y >= screen_height))
         {
             printf("ERROR: Symbol Position is out of bounds POS:(%f, %f)\n", symbolPosition.x, symbolPosition.y);
             exit(1);
@@ -169,8 +177,8 @@ void render_labels(void)
         symbolPosition.y = board_position.y + board_height + tileWidth/2 - symbDims.y/2 ;
         symbolPosition.y += tileWidth/8; // Small Correction Needed For Some Reason ...
         // printf("DEBUG: Board Position: (%f, %f)", symbolPosition.x, symbolPosition.y);
-        if ((symbolPosition.x <= 0 || symbolPosition.x >= screenWidth)
-            || (symbolPosition.y <= 0 || symbolPosition.y >= screenHeight))
+        if ((symbolPosition.x <= 0 || symbolPosition.x >= screen_width)
+            || (symbolPosition.y <= 0 || symbolPosition.y >= screen_height))
         {
             throw_error(__LINE__, __FILE__, "ERROR: Symbol Position is out of bounds POS:(%f, %f)\n", symbolPosition.x, symbolPosition.y);
         }
@@ -179,70 +187,89 @@ void render_labels(void)
 
     MemFree(symb);
 }
-/// @brief render the game pieces onto the screen
-/// @param board 
-void render_pieces(ChessBoard* board) 
+void _render_piece(Rectangle dest, int piece) 
 {
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
-    int tileWidth = board_width / 8;
-    Rectangle source = {0, 0, 200, 200};
     const Vector2 origin = {0, 0};
     const float rotation = 0;
     const Color tint = WHITE;
+    int color = ((piece & 0b11000) == TILE_WHITE) ? 0 : 1; // 0: White, 1: Black
+    /*
+    01, 02, 03, 04, 05, 06
+    07, 08, 09, 10, 11, 12
+    */
+    int idx1 = 0;
+    switch ((piece & 0b111)) {
+        case PAWN: idx1 = 6; break;
+        case KNIGHT: idx1 = 4; break;
+        case BISHOP: idx1 = 3; break;
+        case ROOK: idx1 = 5; break;
+        case QUEEN: idx1 = 2; break;
+        case KING: idx1 = 1; break;
+    };
+    if (idx1) {
+        Rectangle source = {
+            (idx1 - 1) * sprite_size,
+            (color) * sprite_size,
+            sprite_size, 
+            sprite_size
+        };
+        DrawTexturePro(spritesheet, source, dest, origin, rotation, tint);
+    }
+}
+/// @brief render the game pieces onto the screen
+void render_pieces() 
+{
+    int screen_width = GetScreenWidth();
+    int screen_height = GetScreenHeight();
+    int tileWidth = board_width / 8;
+    Rectangle source = {0, 0, 200, 200};
+    ChessBoard *board = current_board;
     int i, j;
     for (i = 0; i < 8; i ++) { // rank
         for (j = 0; j < 8; j ++) { // file
             Rectangle dest = {
                 board_position.x + (float)(j * tileWidth), 
-                board_position.y + (float)(i * tileWidth), 
+                board_position.y + (float)((7 - i) * tileWidth), 
                 (float)tileWidth, (float)tileWidth
             };
             int piece = board->piece_list[ID_FROM_RANK_FILE(i, j)];
-            int color = ((piece & 0b11000) == TILE_WHITE) ? 0 : 1; // 0: White, 1: Black
-            /*
-            01, 02, 03, 04, 05, 06
-            07, 08, 09, 10, 11, 12
-            */
-            int idx1 = 0;
-            switch ((piece & 0b111)) {
-                case PAWN: idx1 = 6; break;
-                case KNIGHT: idx1 = 4; break;
-                case BISHOP: idx1 = 3; break;
-                case ROOK: idx1 = 5; break;
-                case QUEEN: idx1 = 2; break;
-                case KING: idx1 = 1; break;
-            };
-            if (idx1) {
-                int idx2 = idx1 + (6 * color);
-                Rectangle source = {
-                    (idx1 - 1) * sprite_size, 
-                    (1 - color) * sprite_size, 
-                    sprite_size, 
-                    sprite_size
-                };
-                DrawTexturePro(spritesheet, source, dest, origin, rotation, tint);
-            }
+            _render_piece(dest, piece);
         }
+    }
+}
+void render_dragged_piece() 
+{
+    int tileWidth = board_width / 8;
+    if (dragging_piece) {
+        float mouse_x = GetMouseX();
+        float mouse_y = GetMouseY();
+        int piece_id = current_board->piece_list[selected_tile_idx];
+        Rectangle dest = {
+            mouse_x - (tileWidth / 2),
+            mouse_y - (tileWidth / 2),
+            (float)tileWidth, (float)tileWidth
+        };
+        _render_piece(dest, piece_id);
     }
 }
 /// @brief Render logic for game screen. Performed once per frame
 void game_screen_draw(void)
 {
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
-    DrawRectangle(0, 0, screenWidth, screenHeight, RAYWHITE); // background
+    int screen_width = GetScreenWidth();
+    int screen_height = GetScreenHeight();
+    DrawRectangle(0, 0, screen_width, screen_height, RAYWHITE); // background
     render_tiles();
     render_labels();
-    render_pieces(currentBoard);
+    render_pieces(current_board);
+    render_dragged_piece();
 
 }
 void game_screen_unload(void) 
 {
     UnloadFont(boardTextFont);
     MemFree(currentBoardTheme);
-    chess_board_destroy(currentBoard);
-    MemFree(currentBoard);
+    chess_board_destroy(current_board);
+    MemFree(current_board);
 }
 int game_screen_ended(void)
 {

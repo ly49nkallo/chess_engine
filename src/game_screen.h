@@ -27,8 +27,9 @@ void game_screen_init(void);
 void game_screen_update(void);
 void render_tiles(void);
 void render_labels(void);
-void render_pieces(ChessBoard* board);
+void render_pieces();
+void render_dragged_piece();
 void game_screen_draw(void);
 int game_screen_ended(void);
 
-#endif CE_GAME_SCREEN_H
+#endif // CE_GAME_SCREEN_H

@@ -5,8 +5,6 @@
 #include "../src/chess_engine.h"
 #include <inttypes.h>
 
-int main(int argc, char** argv) {
-    float a = 12.2f;
-    float b = 12.3f;
-    printf("%d\n", (int) (a) / (int) (b));
+int main() {
+    print_board_in_terminal_from_FEN(CE_FEN_STARTING_POSITION);
 }

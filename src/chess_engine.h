@@ -31,8 +31,20 @@ typedef struct ChessBoard {
 void chess_board_init(ChessBoard* board);
 void chess_board_destroy(ChessBoard* board);
 
-enum rank_id {EMPTY = 0, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING}; // KING = 6
-enum color_id {TILE_WHITE = 0b10000, TILE_BLACK = 0b01000};
+enum rank_id {
+    EMPTY = 0, 
+    PAWN, 
+    KNIGHT, 
+    BISHOP, 
+    ROOK, 
+    QUEEN, 
+    KING
+};
+
+enum color_id {
+    TILE_WHITE = 0b10000, 
+    TILE_BLACK = 0b01000
+};
 
 typedef struct move_tag {
     uint8_t from_rank;
@@ -48,6 +60,9 @@ int char_to_piece_id(const char piece);
 char piece_id_to_char(const int piece);
 void generate_board_from_FEN(ChessBoard* board, const char* FEN_string);
 void print_board_in_terminal_from_FEN(const char* FEN_string);
-void chess_board_add_piece(ChessBoard* board, const int rank, const int file, const int piece_id);
+int chess_board_add_piece(ChessBoard* board, const int tile, const int piece_id);
+int chess_board_remove_piece(ChessBoard *board, const int tile, const int piece_id);
+uint64_t chess_board_pseudo_legal_get_moves_BB(ChessBoard *board, int tile);
+int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, int tile);
 
-#endif
+#endif // CHESS_ENGINE_H

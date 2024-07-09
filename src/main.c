@@ -9,9 +9,10 @@
 
 static ScreenState currentScreenState;
 
-static int screenWidth = 800;
-static int screenHeight = 550;
-static ScreenState startingScreenState = GAME;
+static int screen_width = 800;
+static int screen_height = 550;
+static int frame_rate = 60;
+static const ScreenState startingScreenState = GAME;
 
 static void InitApp(void);         // Initialize App
 static void UpdateFrame(void);       // Update Frame (one frame)
@@ -24,11 +25,11 @@ static char* WindowName = "Simple Chess Engine - Alpha 1.0";
 
 int main(void)
 {
-    InitWindow(screenWidth, screenHeight, WindowName);
+    InitWindow(screen_width, screen_height, WindowName);
 
     InitApp();
 
-    SetTargetFPS(30);
+    SetTargetFPS(frame_rate);
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
         // Update and Draw
