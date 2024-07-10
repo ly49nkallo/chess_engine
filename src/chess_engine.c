@@ -1,4 +1,3 @@
-#include "utilities.h"
 #include "chess_engine.h"
 
 
@@ -86,7 +85,7 @@ int char_to_piece_id(const char piece) // From FEN version of piece ID
         case 'r': rank_id = ROOK;   break;
         case 'q': rank_id = QUEEN;  break;
         case 'k': rank_id = KING;   break;
-        default: printf("ERROR: Unknown piece %c\n", _piece); exit(1);
+        default: ERROR("Unknown piece %c", _piece);
     }
     return rank_id | color_mask;
 }
@@ -107,7 +106,7 @@ char piece_id_to_char(const int piece)
         case KING:   c = 'K'; break;
     }
     if (c == 0) 
-        throw_error(__LINE__, __FILE__, "ERROR: Failed to match piece with id: %d\n", piece);
+        ERROR("ERROR: Failed to match piece with id: %d\n", piece);
 
     return c + (((piece & 0b11000) == TILE_BLACK) ? 32 : 0); // switch for white and black
 }
@@ -130,7 +129,7 @@ void generate_board_from_FEN(ChessBoard *board, const char *FEN_string)
             }
             else if (FEN_string[i] == '/') {
                 if (r == 0)
-                    throw_error(__LINE__, __FILE__, "ERROR: FEN decode failed. FEN: %s\n",  FEN_string);
+                    ERROR("ERROR: FEN decode failed. FEN: %s\n",  FEN_string);
                 r--;
                 j = r * 8;
             }
@@ -141,12 +140,9 @@ void generate_board_from_FEN(ChessBoard *board, const char *FEN_string)
             }
             else {
                     if (j > r * 8 + 7)
-                        throw_error(__LINE__, __FILE__, "FEN decode failed. Tried to index %d on rank %d. FEN: %s\n", j, r, FEN_string);
+                        ERROR("FEN decode failed. Tried to index %d on rank %d. FEN: %s\n", j, r, FEN_string);
                     int piece_id = char_to_piece_id(FEN_string[i]);
-                    board->piece_list[j] = piece_id;
-                    board->bitboards[piece_id & 0b111] += (1LL << j);
-                    uint64_t* color_mask = ((piece_id & 0b11000) == 0b10000) ? &(board->white) :&(board->black);
-                    *color_mask += (1LL << j);
+                    chess_board_add_piece(board, j, piece_id);
                     j ++;
             }
         }
@@ -158,7 +154,7 @@ void generate_board_from_FEN(ChessBoard *board, const char *FEN_string)
                 state ++;
             }
             else {
-                throw_error(__LINE__, __FILE__, "Turn-to-play decode failed. Got '%c'. FEN: %s\n", FEN_string[i], FEN_string);
+                ERROR("Turn-to-play decode failed. Got '%c'. FEN: %s\n", FEN_string[i], FEN_string);
             }
         }
         i ++;
@@ -184,58 +180,70 @@ void print_board_in_terminal_from_FEN(const char *FEN_string)
 int chess_board_add_piece(ChessBoard *board, const int tile, const int piece_id) 
 {
     if (tile < 0 || tile > 63)
-        throw_error(__LINE__, __FILE__, "Rank/File out of bounds. Rank: %d, File %d", tile / 8, tile % 8);
+        ERROR("Rank/File out of bounds. Rank: %d, File %d", tile / 8, tile % 8);
     // Check if the tile is already occupied
-    if ((board->white | board->black) & (1LL << tile))
+    if ((board->white | board->black) & (1LL << tile)) {
+        WARNING("Tile is already occupied %d", tile);
         return 0;
+    }
     // Add to bitboards
     if ((piece_id & 0b11000) == TILE_WHITE) {
-        board->white += (1LL << tile);
+        board->white += (1ULL << tile);
     }
     else {
-        board->black += (1LL << tile);
+        board->black += (1ULL << tile);
     }
     int piece_rank = (piece_id & 0b111);
-    board->bitboards[piece_rank] += (1 << tile);
+    board->bitboards[piece_rank - 1] += (1ULL << tile);
 
     // Add to piece list
-    board->piece_list[tile] = piece_id;
+    board->piece_list[tile] = (unsigned char)piece_id;
     return 1;
 }
 
-/// @brief Remove a new piece to a chess to the chess board and update bitboards and piece list accordingly
+/// @brief Remove a piece to a chess to the chess board and update bitboards and piece list accordingly
 /// @param board 
 /// @param tile
 /// @param piece_id integer representation of a piece CCRRR
 /// @return 1 if successful, 0 otherwise
-int chess_board_remove_piece(ChessBoard *board, const int tile, const int piece_id) 
+int chess_board_remove_piece(ChessBoard *board, const int tile) 
 {
-    uint64_t l = (1ULL < tile);
+    int piece_id = board->piece_list[tile];
+    uint64_t l = (1ULL << tile);
     if (tile < 0 || tile > 63)
-        throw_error(__LINE__, __FILE__, "Rank/File out of bounds. Rank: %d, File %d", tile / 8, tile % 8);
+        ERROR("Rank/File out of bounds. Rank: %d, File %d", tile / 8, tile % 8);
     // Check if the tile is occupied
-    if (~((board->white | board->black) & l))
+    if (!(((board->white) | (board->black)) & l)) {
+        WARNING("Failed to detect piece in tile", 'a');
         return 0;
+    }
     // Remove from bitboards
     if ((piece_id & 0b11000) == TILE_WHITE) {
-        if (~(board->white & l))
+        if (!(board->white & l)) {
+            WARNING("Bitboard white and piece white disagree", 'a');
             return 0;
+        }
         board->white -= l;
     }
-    else {
-        if (~(board->black & l))
+    else if ((piece_id & 0b11000) == TILE_BLACK) {
+        if (!(board->black & l)) {
+            WARNING("Bitboard black and piece black disagree", 'a');
             return 0;
+        }
         board->black -= l;
     }
+    else ERROR("Piece %d", piece_id);
     int piece_rank = (piece_id & 0b111);
     // If piece does not occupy the area of the board
-    if (~(board->bitboards[piece_rank] & l))
+    if (!(board->bitboards[piece_rank - 1] & l)) {
+        WARNING("Bitboard piece mask disagrees with piece list %llu, %llu", board->bitboards[piece_rank - 1], l);
         return 0;
+    }
 
     board->bitboards[piece_rank] -= l;
 
-    // Add to piece list
-    board->piece_list[tile] = piece_id;
+    // remove from piece list
+    board->piece_list[tile] = 0;
     return 1;
 }
 
@@ -253,7 +261,7 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, int tile)
         case EMPTY:
             return bb; // empty bitboard
         case PAWN: 
-            break;
+            break; /// TODO
         case KNIGHT:
             break;
         case BISHOP:
@@ -265,6 +273,7 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, int tile)
         case KING:
             break;
     }
+    throw_not_implemented_error(__LINE__, __FILE__);
 }
 
 /// @brief Get valid moves for a piece (Index array representation)
@@ -280,4 +289,29 @@ int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, int tile)
     switch(rank) {
 
     }
+    throw_not_implemented_error(__LINE__, __FILE__);
+}
+
+void chess_board_move(ChessBoard *board, const int from, const int to)
+{
+    int piece = board->piece_list[from];
+    int color = piece & 0b11000;
+    INFO("Move piece %c from tile %d to tile %d", piece_id_to_char(piece), from, to);
+    if (color == TILE_WHITE ) {
+        // If white captures black
+        if (board->black & (1ULL << to)) {
+            if (!chess_board_remove_piece(board, to)) 
+                ERROR("Unable to remove piece from tile %d", to);
+        }
+    }
+    else if (color == TILE_BLACK && 1) {
+        // If black captures white
+        if (board->white & (1ULL << to)) {
+            if (!chess_board_remove_piece(board, to)) 
+                ERROR("Unable to remove piece from tile %d", to);
+
+        }
+    }
+    if (!chess_board_remove_piece(board, from)) ERROR("Unable to remove piece from tile %d", from);
+    if (!chess_board_add_piece(board, to, piece)) ERROR("Unable to add piece to tile %d", to);
 }

@@ -96,10 +96,16 @@ void game_screen_update(void)
         
     }
     /* Drag piece */
-    if (selected_tile_idx > -1 && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-        dragging_piece = 1;
+    if (selected_tile_idx > -1 && hovered_tile_idx > -1) {
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            dragging_piece = 1;
+        }
+        if (dragging_piece == 1 && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            dragging_piece = 0;
+            chess_board_move(current_board, selected_tile_idx, hovered_tile_idx);
+        }
     }
-    else dragging_piece = 0;
+    else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) dragging_piece = 0;
     frameCount++;
 }
 /// @brief render the colored tiles onto the screen

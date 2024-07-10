@@ -8,6 +8,7 @@
 #include "stdint.h"
 #include "stdbool.h"
 #include "inttypes.h"
+#include "utilities.h"
 
 #define CE_FEN_STARTING_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 #define ID_FROM_RANK_FILE(r, f) (r * 8 + f)
@@ -60,8 +61,10 @@ int char_to_piece_id(const char piece);
 char piece_id_to_char(const int piece);
 void generate_board_from_FEN(ChessBoard* board, const char* FEN_string);
 void print_board_in_terminal_from_FEN(const char* FEN_string);
+
 int chess_board_add_piece(ChessBoard* board, const int tile, const int piece_id);
-int chess_board_remove_piece(ChessBoard *board, const int tile, const int piece_id);
+int chess_board_remove_piece(ChessBoard *board, const int tile);
+void chess_board_move(ChessBoard *board, int from, int to);
 uint64_t chess_board_pseudo_legal_get_moves_BB(ChessBoard *board, int tile);
 int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, int tile);
 

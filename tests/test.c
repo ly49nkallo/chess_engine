@@ -7,4 +7,5 @@
 
 int main() {
     print_board_in_terminal_from_FEN(CE_FEN_STARTING_POSITION);
+    WARNING("HI %d\n", 12);
 }
