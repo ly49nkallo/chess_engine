@@ -6,15 +6,6 @@
 #include "stdarg.h"
 #include "chess_engine.h"
 
-typedef struct Button{
-    int x, y;
-    int width, height;
-    int isSelected;
-    int isPressed;
-} Button;
-
-int isOnButton(int, int, Button*);
-
 void throw_error(int line_number, const char* file_name, const char* message_format, ...);
 void throw_warning(int line_number, const char *file_name, const char *message_format, ...);
 void throw_info(int line_number, const char *file_name, const char *message_format, ...);

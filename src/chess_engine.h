@@ -1,4 +1,3 @@
-
 #ifndef CHESS_ENGINE_H
 #define CHESS_ENGINE_H
 
@@ -54,6 +53,13 @@ typedef struct move_tag {
     uint8_t to_file;
     uint8_t castling;
 } Move;
+
+int chess_board_add_piece(ChessBoard* board, const int tile, const int piece_id);
+int chess_board_remove_piece(ChessBoard *board, const int tile);
+void chess_board_move(ChessBoard *board, int from, int to);
+uint64_t chess_board_pseudo_legal_get_moves_BB(ChessBoard *board, int tile);
+int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, int tile);
+
 /* Utilities */
 
 void print_board_in_terminal(ChessBoard* board);
@@ -61,11 +67,6 @@ int char_to_piece_id(const char piece);
 char piece_id_to_char(const int piece);
 void generate_board_from_FEN(ChessBoard* board, const char* FEN_string);
 void print_board_in_terminal_from_FEN(const char* FEN_string);
-
-int chess_board_add_piece(ChessBoard* board, const int tile, const int piece_id);
-int chess_board_remove_piece(ChessBoard *board, const int tile);
-void chess_board_move(ChessBoard *board, int from, int to);
-uint64_t chess_board_pseudo_legal_get_moves_BB(ChessBoard *board, int tile);
-int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, int tile);
+void print_bitboard(uint64_t bb);
 
 #endif // CHESS_ENGINE_H

@@ -1,12 +1,4 @@
 #include "utilities.h"
-#define ERROR_BUFFER_SIZE 1024
-
-int isOnButton(int x, int y, Button* button) 
-{
-    return ((x > button->x) && (x < button->x + button->width) 
-        && (y > button->y) && (y < button->y + button->height)) ?
-        1 : 0;
-}
 
 void throw_error(int line_number, const char* file_name, const char* message_format, ...)
 {

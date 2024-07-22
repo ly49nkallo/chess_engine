@@ -5,7 +5,10 @@
 #include "../src/chess_engine.h"
 #include <inttypes.h>
 
-int main() {
-    print_board_in_terminal_from_FEN(CE_FEN_STARTING_POSITION);
-    WARNING("HI %d\n", 12);
+int main(void) {
+    ChessBoard board;
+    chess_board_init(&board);
+    generate_board_from_FEN(&board, CE_FEN_STARTING_POSITION);
+    print_bitboard(board.bitboards[PAWN - 1]);
+    return 0;
 }

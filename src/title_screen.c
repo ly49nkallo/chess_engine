@@ -15,8 +15,23 @@ static const char* startText = "Start";
 static Font titleScreenFont;
 static Vector2 center, titleTextPos, startTextPos;
 static int screenWidth, screenHeight;
+typedef struct Button{
+    int x, y;
+    int width, height;
+    int isSelected;
+    int isPressed;
+} Button;
+
+int isOnButton(int x, int y, Button* button) 
+{
+    return ((x > button->x) && (x < button->x + button->width) 
+        && (y > button->y) && (y < button->y + button->height)) ?
+        1 : 0;
+}
+
 Button startButton;
 static int screenEnded;
+
 
 void title_screen_init(void) 
 {
