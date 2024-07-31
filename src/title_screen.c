@@ -14,10 +14,10 @@ static const char* titleText = "Simple Chess Engine!";
 static const char* startText = "Start";
 static Font titleScreenFont;
 static Vector2 center, titleTextPos, startTextPos;
-static int screenWidth, screenHeight;
+static float screenWidth, screenHeight;
 typedef struct Button{
-    int x, y;
-    int width, height;
+    float x, y;
+    float width, height;
     int isSelected;
     int isPressed;
 } Button;
@@ -41,22 +41,22 @@ void title_screen_init(void)
     titleScreenFont = LoadFontEx("resources/Philosopher-Bold.ttf", 40, 0, 250);
     printf("INFO: FONT: Loaded title screen font sucessfully\n");
 
-    screenWidth = GetScreenWidth();
-    screenHeight = GetScreenHeight();
+    screenWidth = (float)GetScreenWidth();
+    screenHeight = (float)GetScreenHeight();
     center.x = screenWidth/2;
     center.y = screenHeight/2;
 
     // Title Text
     Vector2 titleTextDims = MeasureTextEx(titleScreenFont, titleText, 40, 5); 
-    int titleTextWidth = titleTextDims.x;
-    int titleTextHeight = titleTextDims.y;
+    float titleTextWidth = titleTextDims.x;
+    float titleTextHeight = titleTextDims.y;
     titleTextPos.x = screenWidth/2 - titleTextWidth/2;
     titleTextPos.y = screenHeight/4 - titleTextHeight/2; // title is 1/4 up the screen
 
     // Start Text
     Vector2 startTextDims = MeasureTextEx(titleScreenFont, startText, 20, 5); 
-    int startTextWidth = startTextDims.x;
-    int startTextHeight = startTextDims.y;
+    float startTextWidth = startTextDims.x;
+    float startTextHeight = startTextDims.y;
     startTextPos.x = screenWidth/2 - startTextWidth/2;
     startTextPos.y = screenHeight/2 - startTextHeight/2; // start button is in center
 
@@ -90,12 +90,12 @@ void title_screen_update(void)
 void title_screen_draw(void) 
 {
     DrawRectangle(0, 0, screenWidth, screenHeight, RAYWHITE); // background
-    DrawCircleSector(center, (float) screenHeight / 2, 0.0f + rotation, 90.0f + rotation, 20, GRAY);
-    DrawCircleSector(center, (float) screenHeight / 2, 180.0f + rotation, 270.0f + rotation, 20, GRAY);
+    DrawCircleSector(center, screenHeight / 2, 0.0f + rotation, 90.0f + rotation, 20, GRAY);
+    DrawCircleSector(center, screenHeight / 2, 180.0f + rotation, 270.0f + rotation, 20, GRAY);
     DrawTextEx(titleScreenFont, titleText, titleTextPos, 40, 5, BLACK);
 
     // Draw Button
-    DrawRectangle(startButton.x, startButton.y, startButton.width, startButton.height, DARKGRAY);
+    DrawRectangle((int)startButton.x, (int)startButton.y, (int)startButton.width, (int)startButton.height, DARKGRAY);
     Rectangle rec = {startButton.x, startButton.y, startButton.width, startButton.height};
     const Color highlightColor = WHITE;
     const Color normalColor = BLACK;
