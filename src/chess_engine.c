@@ -298,9 +298,11 @@ void generate_board_from_FEN(ChessBoard *board, const char *FEN_string)
         }
         else if (state == 1) { // turn to play
             if (FEN_string[i] == 'w') {
+                board->white_turn = 1;
                 state ++;
             }
             else if (FEN_string[i] == 'b') {
+                board->white_turn = 0;
                 state ++;
             }
             else {
