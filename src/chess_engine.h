@@ -10,7 +10,7 @@
 #include "utilities.h"
 
 #define CE_FEN_STARTING_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-#define ID_FROM_RANK_FILE(r, f) (r * 8 + f)
+#define ID_FROM_RANK_FILE(r, f) (r * 8 + f) // Zero-indexed rank and file
 
 /// @brief The structure containing all information about a chess board position
 typedef struct ChessBoard {
