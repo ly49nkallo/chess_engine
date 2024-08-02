@@ -10,5 +10,6 @@ int main(void) {
     chess_board_init(&board);
     generate_board_from_FEN(&board, CE_FEN_STARTING_POSITION);
     print_bitboard(board.bitboards[PAWN - 1]);
+    printf("%llu\n", sizeof(Precomputed_BB));
     return 0;
 }

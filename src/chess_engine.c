@@ -1,5 +1,5 @@
 #include "chess_engine.h"
-
+#include "bitboard_utils.h"
 
 ///@file chess_engine.c
 ///@brief Code that handles the logic and execution of a legal game of chess
@@ -26,7 +26,42 @@ void chess_board_destroy(ChessBoard* board)
     free(board->bitboards);
     free(board->piece_list);
 }
+/// @brief constructor for precomputed bitboard
+/// @param pbb 
+void precomputed_bb_init(Precomputed_BB *pbb)
+{
+    if (pbb->computed) WARNING("Recomputing already populated precomputed bitboards", 0);
+    memset(pbb->bishop, 0, sizeof(uint64_t) * 64);
+    memset(pbb->knight, 0, sizeof(uint64_t) * 64);
+    memset(pbb->rook, 0, sizeof(uint64_t) * 64);
+    memset(pbb->queen, 0, sizeof(uint64_t) * 64);
+    memset(pbb->king, 0, sizeof(uint64_t) * 64);
+    memset(pbb->pawn_white, 0, sizeof(uint64_t) * 64);
+    memset(pbb->pawn_black, 0, sizeof(uint64_t) * 64);
+    pbb->computed = 0;
+}
+/// @brief destructor for precomputed bitboard
+/// @param pbb 
+void precomputed_bb_free(Precomputed_BB *pbb)
+{
+    free(pbb);
+}
+/// @brief precompute the bitboards
+/// @param pbb 
+void precomputed_bb_compute(Precomputed_BB *pbb) ///@note TODO
+{
+    int i; // piece tile is on
+    int j; // 
+    int k;
+    // bishops
+    for (i = 0; i < 64; i ++) {
+        uint64_t bb = 0ULL;
+        // east slide
+        bb += e_one(bb);
+        pbb->bishop[i] = bb;
 
+    }
+}
 /// @brief Add a new piece to a chess to the chess board and update bitboards and piece list accordingly
 /// @param board 
 /// @param tile
@@ -57,7 +92,7 @@ int chess_board_add_piece(ChessBoard *board, const int tile, const int piece_id)
     board->bitboards[piece_rank - 1] += (1ULL << tile);
 
     // Add to piece list
-    board->piece_list[tile] = (unsigned char)piece_id;
+    board->piece_list[tile] = (uint8_t)piece_id;
     return 1;
 }
 
@@ -150,6 +185,7 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile
             break;
     }
     throw_not_implemented_error(__LINE__, __FILE__);
+    return 0ULL;
 }
 
 /// @brief Get valid moves for a piece (Index array representation)
@@ -168,6 +204,7 @@ int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, const int tile)
 
     }
     throw_not_implemented_error(__LINE__, __FILE__);
+    return (void *) 0;
 }
 
 void chess_board_move(ChessBoard *board, const int from, const int to)
@@ -192,7 +229,7 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
     }
     if (!chess_board_remove_piece(board, from)) ERROR("Unable to remove piece from tile %d", from);
     if (!chess_board_add_piece(board, to, piece)) ERROR("Unable to add piece to tile %d", to);
-    // print_bitboard((board->bitboards[PAWN - 1]) & board->white);
+    print_bitboard((board->bitboards[PAWN - 1]) & board->white);
 }
 
 //////////////////////////////////////////
@@ -360,7 +397,7 @@ void print_bitboard(uint64_t bb)
         }
         row[8] = '\0';
         j = 0;
-        printf(row);
+        puts(row);
         printf("\n");
         i--;
     }
