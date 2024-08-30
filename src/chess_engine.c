@@ -54,6 +54,7 @@ void precomputed_bb_compute(Precomputed_BB *pbb) ///@note TODO
     int j; // 
     int k;
     // bishops
+    // @TODO
     for (i = 0; i < 64; i ++) {
         uint64_t bb = 0ULL;
         // east slide
@@ -148,6 +149,7 @@ int chess_board_remove_piece(ChessBoard *board, const int tile)
 /// @return Bitboard representing the valid moves
 uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile) 
 {
+    U64 tile_mask = (1ULL << tile);
     int piece_id = board->piece_list[tile];
     int rank = (piece_id & 0b00111);
     int color = (piece_id & 0b11000);
@@ -157,10 +159,16 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile
             WARNING("get moves for empty tile (id: %d)", tile);
             return bb; // empty bitboard
         case PAWN: 
-            // single pawn push (always possible)
-            // double pawn push (only possible when pawn on second rank)
+            if (color == TILE_WHITE) {
+                // single pawn push (always possible)
+                bb += n_one(tile_mask);
+                // double pawn push (only possible when pawn on second rank)
+                if (tile_mask & rank_2) {
+                    bb += n_one(n_one(tile_mask));
+                }
             // en pessant (only possible when board en passant square in under attack)
             // capture
+            }
             break; /// TODO
         case KNIGHT:
             // move
@@ -401,4 +409,8 @@ void print_bitboard(uint64_t bb)
         printf("\n");
         i--;
     }
+}
+
+uint64_t get_occupied_tiles_white(ChessBoard *board) {
+
 }

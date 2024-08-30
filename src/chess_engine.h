@@ -31,6 +31,11 @@ typedef struct ChessBoard {
 void chess_board_init(ChessBoard *board);
 void chess_board_destroy(ChessBoard *board);
 
+typedef struct Move {
+    uint8_t from;
+    uint8_t to;
+} Move;
+
 enum rank_id {
     EMPTY = 0, 
     PAWN, 
@@ -45,14 +50,6 @@ enum color_id {
     TILE_WHITE = 0b10000, 
     TILE_BLACK = 0b01000
 };
-
-typedef struct move_tag {
-    uint8_t from_rank;
-    uint8_t from_file;
-    uint8_t to_rank;
-    uint8_t to_file;
-    uint8_t castling;
-} Move;
 
 typedef struct precomputed_bb {
     uint64_t knight[64];
