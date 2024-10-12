@@ -1,0 +1,6 @@
+#!/bin/bash
+
+CURR_DIR=$(pwd)
+EXECUTE_DIR=$CURR_DIR/build/CHESS_ENGINE/Debug
+cd $EXECUTE_DIR
+./CHESS_ENGINE.exe
