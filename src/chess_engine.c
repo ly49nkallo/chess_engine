@@ -76,17 +76,18 @@ int chess_board_add_piece(ChessBoard *board, const int tile, const int piece_id)
         return 0;
     }
     // Add to bitboards
-    if ((piece_id & 0b11000) == TILE_WHITE) {
+    int piece_color = piece_id & 0b11000;
+    if ((piece_color) == TILE_WHITE) {
         if (board->white & (1ULL << tile))
             ERROR("Bitboard index already occupied", 0);
         board->white += (1ULL << tile);
     }
-    else if ((piece_id & 0b11000) == TILE_BLACK) {
+    else if ((piece_color) == TILE_BLACK) {
         if (board->white & (1ULL << tile))
             ERROR("Bitboard index already occupied", 0);
         board->black += (1ULL << tile);
     }
-    else ERROR("Invalid piece color %d", (piece_id & 0b11000));
+    else ERROR("Invalid piece color %d", (piece_color));
     int piece_rank = (piece_id & 0b111);
     board->bitboards[piece_rank - 1] += (1ULL << tile);
 
@@ -159,18 +160,22 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile
             return bb; // empty bitboard
         case PAWN: 
             if (color == TILE_WHITE) {
-                // single pawn push (always possible)
-                bb += n_one(tile_mask);
-                // double pawn push (only possible when pawn on second rank)
-                if (tile_mask & rank_2) {
-                    bb += n_one(n_one(tile_mask));
+                /* Move */
+                // if tile in front is not occupied
+                if (!(n_one(tile_mask) & (board->black | board->white))) {
+                    // single pawn push
+                    bb += n_one(tile_mask);
+                    // double pawn push (only possible when pawn on second rank)
+                    if ((tile_mask & rank_2) && !(n_one(n_one(tile_mask)) & (board->black | board->white))) {
+                        bb += n_one(n_one(tile_mask));
+                    }
                 }
             // TODO: en pessant (only possible when board en passant square in under attack)
             // Capture
-                if (ne_one(tile_mask) && board->black) {
+                if (ne_one(tile_mask) & board->black) {
                     bb += ne_one(tile_mask);
                 }
-                if (nw_one(tile_mask) && board->black) {
+                if (nw_one(tile_mask) & board->black) {
                     bb += nw_one(tile_mask);
                 }
             }
@@ -183,10 +188,10 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile
                 }
             // TODO: en pessant (only possible when board en passant square in under attack)
             // Capture
-                if (se_one(tile_mask) && board->black) {
+                if (se_one(tile_mask) & board->black) {
                     bb += se_one(tile_mask);
                 }
-                if (sw_one(tile_mask) && board->black) {
+                if (sw_one(tile_mask) & board->black) {
                     bb += sw_one(tile_mask);
                 }
             }
@@ -213,7 +218,11 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile
             // castles
             break;
     }
-    // throw_not_implemented_error(__LINE__, __FILE__);
+    /* Remove any move that would have our piece pass into our own piece of same color */
+    if (color == TILE_WHITE)
+        bb &= (~(board->white));
+    else if (color == TILE_BLACK)
+        bb &= (~(board->black));
     return bb;
 }
 
@@ -238,10 +247,11 @@ int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, const int tile)
 
 void chess_board_move(ChessBoard *board, const int from, const int to)
 {
+    if (from == to) return; // nothing to be done
     int piece = board->piece_list[from];
     int color = piece & 0b11000;
     INFO("Move piece %c from tile %d to tile %d", piece_id_to_char(piece), from, to);
-
+    
     // Check for captures
     if (color == TILE_WHITE) {
         // If white captures black
