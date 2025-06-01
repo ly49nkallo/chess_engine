@@ -141,20 +141,21 @@ int chess_board_remove_piece(ChessBoard *board, const int tile)
     return 1;
 }
 
-/// @brief Get valid moves for a piece (Bitboard representation)
+/// @brief Get valid moves for a piece (Bitboard representation).
+///        This function does not account for checks on the king so it is 'pseudo' legal.
 /// @param board
-/// @param tile
+/// @param tile The tile of the piece we should calculate moves for
 /// @return Bitboard representing the valid moves
-uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile) 
+uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
 {
-    U64 tile_mask = (1ULL << tile);
+    uint64_t tile_mask = (1ULL << tile);
     int piece_id = board->piece_list[tile];
     int rank = (piece_id & 0b00111);
     int color = (piece_id & 0b11000);
     uint64_t bb = 0ULL;
     switch(rank) {
         case EMPTY:
-            WARNING("get moves for empty tile (id: %d)", tile);
+            ERROR("get moves for empty tile (id: %d)", tile);
             return bb; // empty bitboard
         case PAWN: 
             if (color == TILE_WHITE) {
@@ -240,6 +241,8 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
     int piece = board->piece_list[from];
     int color = piece & 0b11000;
     INFO("Move piece %c from tile %d to tile %d", piece_id_to_char(piece), from, to);
+
+    // Check for captures
     if (color == TILE_WHITE) {
         // If white captures black
         if (board->black & (1ULL << to)) {
@@ -255,6 +258,7 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
 
         }
     }
+
     if (!chess_board_remove_piece(board, from)) ERROR("Unable to remove piece from tile %d", from);
     if (!chess_board_add_piece(board, to, piece)) ERROR("Unable to add piece to tile %d", to);
     print_board_in_terminal(board);
@@ -433,5 +437,5 @@ void print_bitboard(uint64_t bb) // Maybe depreciate
 /// @brief Returns True if ChessBoard is valid, False if otherwise
 /// @param board 
 bool verify_chessboard(ChessBoard *board) {
-
+    ERROR("Not Implemented!", 0);
 }
