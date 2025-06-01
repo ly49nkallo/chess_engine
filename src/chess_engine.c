@@ -8,9 +8,7 @@
 /// @param board 
 void chess_board_init(ChessBoard *board)
 {
-    board->bitboards = malloc((sizeof board->bitboards) * 6);
-    memset(board->bitboards, 0, (sizeof board->bitboards) * 6);
-    board->piece_list = malloc((sizeof board->piece_list) * 64);
+    memset(board->bitboards, 0, (sizeof board->bitboards) * 7);
     memset(board->piece_list, 0, (sizeof board->piece_list) * 64);
     board->castling_avaliablility = 0;
     board->black = 0;
@@ -145,7 +143,7 @@ int chess_board_remove_piece(ChessBoard *board, const int tile)
 
 /// @brief Get valid moves for a piece (Bitboard representation)
 /// @param board
-/// @param tile CCRRR
+/// @param tile
 /// @return Bitboard representing the valid moves
 uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile) 
 {
@@ -166,10 +164,32 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile
                 if (tile_mask & rank_2) {
                     bb += n_one(n_one(tile_mask));
                 }
-            // en pessant (only possible when board en passant square in under attack)
-            // capture
+            // TODO: en pessant (only possible when board en passant square in under attack)
+            // Capture
+                if (ne_one(tile_mask) && board->black) {
+                    bb += ne_one(tile_mask);
+                }
+                if (nw_one(tile_mask) && board->black) {
+                    bb += nw_one(tile_mask);
+                }
             }
-            break; /// TODO
+            if (color == TILE_BLACK) {
+                // single pawn push (always possible)
+                bb += s_one(tile_mask);
+                // double pawn push (only possible when pawn on second rank)
+                if (tile_mask & rank_2) {
+                    bb += s_one(s_one(tile_mask));
+                }
+            // TODO: en pessant (only possible when board en passant square in under attack)
+            // Capture
+                if (se_one(tile_mask) && board->black) {
+                    bb += se_one(tile_mask);
+                }
+                if (sw_one(tile_mask) && board->black) {
+                    bb += sw_one(tile_mask);
+                }
+            }
+            break;
         case KNIGHT:
             // move
             // capture
@@ -192,8 +212,8 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile
             // castles
             break;
     }
-    throw_not_implemented_error(__LINE__, __FILE__);
-    return 0ULL;
+    // throw_not_implemented_error(__LINE__, __FILE__);
+    return bb;
 }
 
 /// @brief Get valid moves for a piece (Index array representation)
@@ -237,7 +257,7 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
     }
     if (!chess_board_remove_piece(board, from)) ERROR("Unable to remove piece from tile %d", from);
     if (!chess_board_add_piece(board, to, piece)) ERROR("Unable to add piece to tile %d", to);
-    print_bitboard((board->bitboards[PAWN - 1]) & board->white);
+    print_board_in_terminal(board);
 }
 
 //////////////////////////////////////////
@@ -309,7 +329,7 @@ int char_to_piece_id(const char piece) // From FEN version of piece ID
 
 /// @brief takes the integer denoting the piece and returns the FEN symbol
 /// @param piece integer representing the piece's identifier
-/// @return symbol corresponding to FEN notation
+/// @return character symbol corresponding to FEN notation
 char piece_id_to_char(const int piece)
 {
     if ((piece & 0b111) == EMPTY) return ' ';
@@ -393,7 +413,7 @@ void print_board_in_terminal_from_FEN(const char *FEN_string)
 
 /// @brief Pretty print a bitboard to the terminal in 8x8 square corresponding to chess board
 /// @param bb the bitboard (64 bits)
-void print_bitboard(uint64_t bb) 
+void print_bitboard(uint64_t bb) // Maybe depreciate
 {
     int i = 7; int j = 0;
     char row[9];
@@ -410,7 +430,8 @@ void print_bitboard(uint64_t bb)
         i--;
     }
 }
-
-uint64_t get_occupied_tiles_white(ChessBoard *board) {
+/// @brief Returns True if ChessBoard is valid, False if otherwise
+/// @param board 
+bool verify_chessboard(ChessBoard *board) {
 
 }

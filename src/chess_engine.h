@@ -15,8 +15,8 @@
 /// @brief The structure containing all information about a chess board position
 typedef struct ChessBoard {
     // implemented using bitboards b/c im like that fr
-    uint64_t* bitboards; // indexed by the rank_id enum
-    uint8_t* piece_list; 
+    uint64_t bitboards[7]; // indexed by the rank_id enum
+    uint8_t piece_list[64]; 
     uint16_t castling_avaliablility; // 4 BITS KQkq : (white king-side, white queen-side, black king-side, black queen-side)
     uint64_t black;
     uint64_t white;
