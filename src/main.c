@@ -7,12 +7,12 @@
     #error "Web is not supported"
 #endif
 
-static ScreenState currentScreenState;
 
 static int screen_width = 800;
 static int screen_height = 550;
 static int frame_rate = 60;
 static const ScreenState startingScreenState = GAME;
+static ScreenState currentScreenState = 0;
 
 static void InitApp(void);         // Initialize App
 static void UpdateFrame(void);       // Update Frame (one frame)

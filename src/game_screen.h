@@ -19,6 +19,7 @@ struct BoardTheme {
     Color selectedColor; // when you left click a piece
     Color highlightColor; // when you right click a tile
     Color arrowColor;
+    Color legalMoveColor; // when you left click a piece and it shows the legal moves
     char* pieceFontName; // default, neo, ...
 };
 

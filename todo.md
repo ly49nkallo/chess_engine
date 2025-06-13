@@ -3,6 +3,7 @@
 ## chess_engine.c
 
 - [ ] Implement allowed moves generator (both bitboard and list)
+  - [ ] Allowed move generator logic bugged for pawns. Double push and H-file pawn broken.
 - [ ] Write script to test moves generator
 
 ## game_screen.c

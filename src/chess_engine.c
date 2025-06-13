@@ -295,14 +295,14 @@ void print_board_in_terminal(ChessBoard *board)
     */
     int i,j;
     if (board->white_turn)
-        printf("White to play\n\n");
+        printf("\nWhite to play\n\n");
     else
-        printf("Black to play\n\n");
+        printf("\nBlack to play\n\n");
 
     for (i = 7; i >= 0; i--) // for each rank
     {
-        printf("%d |", i);
-        for (j = 0; j <= 7; j++) // for each file
+        printf("%d |", i + 1);
+        for (j = 0; j < 8; j++) // for each file
         {
             int index = ID_FROM_RANK_FILE(i, j);
             int piece = board->piece_list[index];
