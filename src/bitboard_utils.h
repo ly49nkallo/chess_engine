@@ -1,4 +1,6 @@
-typedef unsigned long long U64;
+#include "inttypes.h"
+#include "stdint.h"
+typedef uint64_t U64;
 
 const U64 notAFile = 0xfefefefefefefefe; // ~0x0101010101010101
 const U64 notHFile = 0x7f7f7f7f7f7f7f7f; // ~0x8080808080808080
@@ -36,8 +38,7 @@ const U64 file_7 = 0x8080808080808080;
 /* will keep applying shifts and leave line of bits in cardinal directions */
 U64 s_slide (U64 b)
 {
-    U64 cur = b;
-    
+    U64 cursor = b;
 }
 U64 n_slide (U64 b);
 U64 e_slide (U64 b);
@@ -50,6 +51,9 @@ U64 nw_slide (U64 b);
 
 U64 rotate_left (U64 b, int s) {return _rotl64(b, s);}
 U64 rotate_right (U64 b, int s) {return _rotr64(b, s);}
+U64 generic_rotation(U64 b, int s) { // Custom
+    return (s > 0) ? _rotl64(b, s) : _rotr64(b, s);
+}
 
 /* Alternatively */
 // U64 rotateLeft (U64 x, int s) {return (x << s) | (x >> (64-s));}
@@ -76,6 +80,9 @@ const U64 avoid_wrap[8] =
     0xffffffffffffff00, // Dir 8: not rank 1
 };
 
-U64 shiftOne (U64 b, int dir8) {
+U64 shift_one (U64 b, int dir8) {
    return rotate_left(b, shift[dir8]) & avoid_wrap[dir8];
 }
+
+U64 single_bit_set(int pos) {return 1ULL << (pos);}
+

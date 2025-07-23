@@ -31,13 +31,13 @@ void chess_board_destroy(ChessBoard* board)
 void precomputed_bb_init(Precomputed_BB *pbb)
 {
     if (pbb->computed) WARNING("Recomputing already populated precomputed bitboards", 0);
-    memset(pbb->bishop, 0, sizeof(uint64_t) * 64);
-    memset(pbb->knight, 0, sizeof(uint64_t) * 64);
-    memset(pbb->rook, 0, sizeof(uint64_t) * 64);
-    memset(pbb->queen, 0, sizeof(uint64_t) * 64);
-    memset(pbb->king, 0, sizeof(uint64_t) * 64);
-    memset(pbb->pawn_white, 0, sizeof(uint64_t) * 64);
-    memset(pbb->pawn_black, 0, sizeof(uint64_t) * 64);
+    memset(pbb->bishop, 0, sizeof(U64) * 64);
+    memset(pbb->knight, 0, sizeof(U64) * 64);
+    memset(pbb->rook, 0, sizeof(U64) * 64);
+    memset(pbb->queen, 0, sizeof(U64) * 64);
+    memset(pbb->king, 0, sizeof(U64) * 64);
+    memset(pbb->pawn_white, 0, sizeof(U64) * 64);
+    memset(pbb->pawn_black, 0, sizeof(U64) * 64);
     pbb->computed = 0;
 }
 /// @brief destructor for precomputed bitboard
@@ -46,8 +46,8 @@ void precomputed_bb_free(Precomputed_BB *pbb)
 {
     free(pbb);
 }
-/// @brief precompute the bitboards
-/// @param pbb 
+/// @brief precompute the attack vectors of every piece on every tile
+/// @param pbb The memory address of an empty precomputed bitboard
 void precomputed_bb_compute(Precomputed_BB *pbb) ///@note TODO
 {
     int i; // piece tile is on
@@ -56,11 +56,11 @@ void precomputed_bb_compute(Precomputed_BB *pbb) ///@note TODO
     // bishops
     // @TODO
     for (i = 0; i < 64; i ++) {
-        uint64_t bb = 0ULL;
-        // east slide
-        bb += e_one(bb);
+        // initial position
+        U64 bb = single_bit_set(i);
+        // north east slide
+        bb += ne_one(bb);
         pbb->bishop[i] = bb;
-
     }
 }
 /// @brief Add a new piece to a chess to the chess board and update bitboards and piece list accordingly
@@ -105,7 +105,7 @@ int chess_board_add_piece(ChessBoard *board, const int tile, const int piece_id)
 int chess_board_remove_piece(ChessBoard *board, const int tile) 
 {
     int piece_id = board->piece_list[tile];
-    uint64_t l = (1ULL << tile);
+    U64 l = (1ULL << tile);
     if (tile < 0 || tile > 63)
         ERROR("Rank/File out of bounds. Rank: %d, File %d", tile / 8, tile % 8);
     // Check if the tile is occupied
@@ -147,13 +147,13 @@ int chess_board_remove_piece(ChessBoard *board, const int tile)
 /// @param board
 /// @param tile CCRRR
 /// @return Bitboard representing the valid moves
-uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile) 
+U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile) 
 {
     U64 tile_mask = (1ULL << tile);
     int piece_id = board->piece_list[tile];
     int rank = (piece_id & 0b00111);
     int color = (piece_id & 0b11000);
-    uint64_t bb = 0ULL;
+    U64 bb = 0ULL;
     switch(rank) {
         case EMPTY:
             WARNING("get moves for empty tile (id: %d)", tile);
@@ -393,7 +393,7 @@ void print_board_in_terminal_from_FEN(const char *FEN_string)
 
 /// @brief Pretty print a bitboard to the terminal in 8x8 square corresponding to chess board
 /// @param bb the bitboard (64 bits)
-void print_bitboard(uint64_t bb) 
+void print_bitboard(U64 bb) 
 {
     int i = 7; int j = 0;
     char row[9];
@@ -411,6 +411,5 @@ void print_bitboard(uint64_t bb)
     }
 }
 
-uint64_t get_occupied_tiles_white(ChessBoard *board) {
-
+U64 get_occupied_tiles_white(ChessBoard *board) {
 }
