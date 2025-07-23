@@ -14,6 +14,7 @@ static int sprite_size;
 static int hovered_tile_idx;
 static int selected_tile_idx;
 static int dragging_piece;
+static int legal_moves_bb;
 
 
 void _render_piece(Rectangle dest, int piece);
@@ -34,6 +35,7 @@ void game_screen_init(void)
     currentBoardTheme->highlightColor = RED;
     currentBoardTheme->arrowColor = ORANGE;
     currentBoardTheme->pieceFontName = "philosopher_bold";
+    currentBoardTheme->legalMoveColor = (Color){0, 255, 0, 100}; // semi-transparent green
 
     whiteSideDown = 1; //Start with white side down
 
@@ -86,6 +88,11 @@ void game_screen_update(void)
     if (hovered_tile_idx > -1 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         if ((current_board->piece_list[hovered_tile_idx] & 0b111) != EMPTY) {
             selected_tile_idx = hovered_tile_idx;
+            legal_moves_bb = chess_board_get_pseudo_legal_moves_BB(current_board, selected_tile_idx);
+            printf("Allowed Moves for piece [%c] at position %i:\n", 
+                piece_id_to_char(current_board->piece_list[selected_tile_idx] & 0b111),
+                selected_tile_idx);
+            print_bitboard(legal_moves_bb);
         }
         else {
             selected_tile_idx = -1;
@@ -100,12 +107,17 @@ void game_screen_update(void)
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             dragging_piece = 1;
         }
-        if (dragging_piece == 1 && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-            dragging_piece = 0;
+        if (dragging_piece == 1 
+            && IsMouseButtonReleased(MOUSE_BUTTON_LEFT) 
+            && hovered_tile_idx != selected_tile_idx) {
             chess_board_move(current_board, selected_tile_idx, hovered_tile_idx);
+            dragging_piece = 0;
+            selected_tile_idx = -1;
         }
     }
-    else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) dragging_piece = 0;
+    else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        dragging_piece = 0;
+    }
     frameCount++;
 }
 /// @brief render the colored tiles onto the screen
@@ -140,6 +152,17 @@ void render_tiles(void)
             board_position.y + (tileWidth * (7 - (selected_tile_idx / 8))), 
             (float) tileWidth, (float) tileWidth};
             DrawRectangleRec(r, YELLOW);
+    }
+    /* Render small circle over legal moves */
+    if (selected_tile_idx > -1 && legal_moves_bb) {
+        int x, y;
+        for (int i = 0; i < 64; i++) {
+            if (legal_moves_bb & (1ULL << i)) {
+                x = board_position.x + (tileWidth * (i % 8)) + tileWidth / 2;
+                y = board_position.y + (tileWidth * (7 - (i / 8))) + tileWidth / 2;
+                DrawCircle(x, y, tileWidth / 6, currentBoardTheme->legalMoveColor);
+            }
+        }
     }
 }
 /// @brief render the side labels (1-8, A-H) onto the screen

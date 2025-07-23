@@ -1,5 +1,4 @@
-#include "inttypes.h"
-#include "stdint.h"
+#include <stdint.h>
 typedef uint64_t U64;
 
 const U64 notAFile = 0xfefefefefefefefe; // ~0x0101010101010101

@@ -3,23 +3,30 @@
 #include <string.h>
 #include <assert.h>
 #include "../src/chess_engine.h"
+#include "../src/rmem.h"
 #include <inttypes.h>
 typedef uint64_t U64;
+
+
 int main(void) {
-    U64 avoid_wrap[8] =
-    {
-    0xfefefefefefefe00, // Dir 1: not A file and not rank 1
-    0xfefefefefefefefe, // Dir 2: not A file
-    0x00fefefefefefefe, // Dir 3: not A file and not rank 8
-    0x00ffffffffffffff, // Dir 4: not rank 8
-    0x007f7f7f7f7f7f7f, // Dir 5: not rank 8 and not G file
-    0x7f7f7f7f7f7f7f7f, // Dir 6: not G file
-    0x7f7f7f7f7f7f7f00, // Dir 7: not rank 1 and not G file
-    0xffffffffffffff00, // Dir 8: not rank 1
-    };
-    int i;
-    for (i = 0; i < 8; ++i) {
-        print_bitboard(avoid_wrap[i]);
-        printf("\n");
+    /* Test if legal moves BB lines up with legal moves piece list */
+    char *FEN1 = CE_FEN_STARTING_POSITION;
+    char *FEN2 = "rnbqkbnr/8/pppppppp/8/8/PPPPPPPP/8/RNBQKBNR w KQkq - 0 1";
+
+    ChessBoard cb1;
+    generate_board_from_FEN(&cb1, FEN1);
+    ChessBoard cb2;
+    generate_board_from_FEN(&cb2, FEN2);
+
+    int idx;
+    for (idx = 0; idx < 8 * 8; idx++) {
+        if (cb1.piece_list[idx] != EMPTY) {
+            U64 bb = chess_board_get_pseudo_legal_moves_BB(&cb1, idx);
+            int *piece_list = chess_board_get_pseudo_legal_moves_arr(&cb1, idx);
+            for (int j = 0; j < 64; j++) {
+                
+            }
+        }
     }
+
 }

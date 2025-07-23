@@ -8,9 +8,7 @@
 /// @param board 
 void chess_board_init(ChessBoard *board)
 {
-    board->bitboards = malloc((sizeof board->bitboards) * 6);
-    memset(board->bitboards, 0, (sizeof board->bitboards) * 6);
-    board->piece_list = malloc((sizeof board->piece_list) * 64);
+    memset(board->bitboards, 0, (sizeof board->bitboards) * 7);
     memset(board->piece_list, 0, (sizeof board->piece_list) * 64);
     board->castling_avaliablility = 0;
     board->black = 0;
@@ -78,17 +76,18 @@ int chess_board_add_piece(ChessBoard *board, const int tile, const int piece_id)
         return 0;
     }
     // Add to bitboards
-    if ((piece_id & 0b11000) == TILE_WHITE) {
+    int piece_color = piece_id & 0b11000;
+    if ((piece_color) == TILE_WHITE) {
         if (board->white & (1ULL << tile))
             ERROR("Bitboard index already occupied", 0);
         board->white += (1ULL << tile);
     }
-    else if ((piece_id & 0b11000) == TILE_BLACK) {
+    else if ((piece_color) == TILE_BLACK) {
         if (board->white & (1ULL << tile))
             ERROR("Bitboard index already occupied", 0);
         board->black += (1ULL << tile);
     }
-    else ERROR("Invalid piece color %d", (piece_id & 0b11000));
+    else ERROR("Invalid piece color %d", (piece_color));
     int piece_rank = (piece_id & 0b111);
     board->bitboards[piece_rank - 1] += (1ULL << tile);
 
@@ -143,33 +142,60 @@ int chess_board_remove_piece(ChessBoard *board, const int tile)
     return 1;
 }
 
-/// @brief Get valid moves for a piece (Bitboard representation)
+/// @brief Get valid moves for a piece (Bitboard representation).
+///        This function does not account for checks on the king so it is 'pseudo' legal.
 /// @param board
-/// @param tile CCRRR
+/// @param tile The tile of the piece we should calculate moves for
 /// @return Bitboard representing the valid moves
 U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile) 
 {
-    U64 tile_mask = (1ULL << tile);
+    uint64_t tile_mask = (1ULL << tile);
     int piece_id = board->piece_list[tile];
     int rank = (piece_id & 0b00111);
     int color = (piece_id & 0b11000);
     U64 bb = 0ULL;
     switch(rank) {
         case EMPTY:
-            WARNING("get moves for empty tile (id: %d)", tile);
+            ERROR("get moves for empty tile (id: %d)", tile);
             return bb; // empty bitboard
         case PAWN: 
             if (color == TILE_WHITE) {
+                /* Move */
+                // if tile in front is not occupied
+                if (!(n_one(tile_mask) & (board->black | board->white))) {
+                    // single pawn push
+                    bb += n_one(tile_mask);
+                    // double pawn push (only possible when pawn on second rank)
+                    if ((tile_mask & rank_2) && !(n_one(n_one(tile_mask)) & (board->black | board->white))) {
+                        bb += n_one(n_one(tile_mask));
+                    }
+                }
+            // TODO: en pessant (only possible when board en passant square in under attack)
+            // Capture
+                if (ne_one(tile_mask) & board->black) {
+                    bb += ne_one(tile_mask);
+                }
+                if (nw_one(tile_mask) & board->black) {
+                    bb += nw_one(tile_mask);
+                }
+            }
+            if (color == TILE_BLACK) {
                 // single pawn push (always possible)
-                bb += n_one(tile_mask);
+                bb += s_one(tile_mask);
                 // double pawn push (only possible when pawn on second rank)
                 if (tile_mask & rank_2) {
-                    bb += n_one(n_one(tile_mask));
+                    bb += s_one(s_one(tile_mask));
                 }
-            // en pessant (only possible when board en passant square in under attack)
-            // capture
+            // TODO: en pessant (only possible when board en passant square in under attack)
+            // Capture
+                if (se_one(tile_mask) & board->black) {
+                    bb += se_one(tile_mask);
+                }
+                if (sw_one(tile_mask) & board->black) {
+                    bb += sw_one(tile_mask);
+                }
             }
-            break; /// TODO
+            break;
         case KNIGHT:
             // move
             // capture
@@ -192,8 +218,12 @@ U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
             // castles
             break;
     }
-    throw_not_implemented_error(__LINE__, __FILE__);
-    return 0ULL;
+    /* Remove any move that would have our piece pass into our own piece of same color */
+    if (color == TILE_WHITE)
+        bb &= (~(board->white));
+    else if (color == TILE_BLACK)
+        bb &= (~(board->black));
+    return bb;
 }
 
 /// @brief Get valid moves for a piece (Index array representation)
@@ -217,9 +247,12 @@ int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, const int tile)
 
 void chess_board_move(ChessBoard *board, const int from, const int to)
 {
+    if (from == to) return; // nothing to be done
     int piece = board->piece_list[from];
     int color = piece & 0b11000;
     INFO("Move piece %c from tile %d to tile %d", piece_id_to_char(piece), from, to);
+    
+    // Check for captures
     if (color == TILE_WHITE) {
         // If white captures black
         if (board->black & (1ULL << to)) {
@@ -235,9 +268,10 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
 
         }
     }
+
     if (!chess_board_remove_piece(board, from)) ERROR("Unable to remove piece from tile %d", from);
     if (!chess_board_add_piece(board, to, piece)) ERROR("Unable to add piece to tile %d", to);
-    print_bitboard((board->bitboards[PAWN - 1]) & board->white);
+    print_board_in_terminal(board);
 }
 
 //////////////////////////////////////////
@@ -261,14 +295,14 @@ void print_board_in_terminal(ChessBoard *board)
     */
     int i,j;
     if (board->white_turn)
-        printf("White to play\n\n");
+        printf("\nWhite to play\n\n");
     else
-        printf("Black to play\n\n");
+        printf("\nBlack to play\n\n");
 
     for (i = 7; i >= 0; i--) // for each rank
     {
-        printf("%d |", i);
-        for (j = 0; j <= 7; j++) // for each file
+        printf("%d |", i + 1);
+        for (j = 0; j < 8; j++) // for each file
         {
             int index = ID_FROM_RANK_FILE(i, j);
             int piece = board->piece_list[index];
@@ -309,7 +343,7 @@ int char_to_piece_id(const char piece) // From FEN version of piece ID
 
 /// @brief takes the integer denoting the piece and returns the FEN symbol
 /// @param piece integer representing the piece's identifier
-/// @return symbol corresponding to FEN notation
+/// @return character symbol corresponding to FEN notation
 char piece_id_to_char(const int piece)
 {
     if ((piece & 0b111) == EMPTY) return ' ';
