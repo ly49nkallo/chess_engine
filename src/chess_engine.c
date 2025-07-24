@@ -8,8 +8,9 @@
 /// @param board 
 void chess_board_init(ChessBoard *board)
 {
-    memset(board->bitboards, 0, (sizeof board->bitboards) * 7);
-    memset(board->piece_list, 0, (sizeof board->piece_list) * 64);
+    printf("%i", sizeof (board->bitboards));
+    memset(board->bitboards, 0, sizeof (board->bitboards));
+    memset(board->piece_list, 0, sizeof (board->piece_list));
     board->castling_avaliablility = 0;
     board->black = 0;
     board->white = 0;
@@ -28,14 +29,15 @@ void chess_board_destroy(ChessBoard* board)
 /// @param pbb 
 void precomputed_bb_init(Precomputed_BB *pbb)
 {
+    return;
     if (pbb->computed) WARNING("Recomputing already populated precomputed bitboards", 0);
-    memset(pbb->bishop, 0, sizeof(U64) * 64);
-    memset(pbb->knight, 0, sizeof(U64) * 64);
-    memset(pbb->rook, 0, sizeof(U64) * 64);
-    memset(pbb->queen, 0, sizeof(U64) * 64);
-    memset(pbb->king, 0, sizeof(U64) * 64);
-    memset(pbb->pawn_white, 0, sizeof(U64) * 64);
-    memset(pbb->pawn_black, 0, sizeof(U64) * 64);
+    memset(pbb->bishop, 0, sizeof(pbb->bishop));
+    memset(pbb->knight, 0, sizeof(pbb->knight));
+    memset(pbb->rook, 0, sizeof(pbb->rook));
+    memset(pbb->queen, 0, sizeof(pbb->queen));
+    memset(pbb->king, 0, sizeof(pbb->king));
+    memset(pbb->pawn_white, 0, sizeof(pbb->pawn_white));
+    memset(pbb->pawn_black, 0, sizeof(pbb->pawn_black));
     pbb->computed = 0;
 }
 /// @brief destructor for precomputed bitboard

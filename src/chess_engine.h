@@ -85,4 +85,4 @@ void generate_board_from_FEN(ChessBoard* board, const char *FEN_string);
 void print_board_in_terminal_from_FEN(const char *FEN_string);
 void print_bitboard(U64 bb);
 
-
+#endif # CHESS_ENGINE_H
