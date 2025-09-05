@@ -187,14 +187,18 @@ U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
                 }
             }
             if (color == TILE_BLACK) {
-                // single pawn push (always possible)
-                bb += s_one(tile_mask);
-                // double pawn push (only possible when pawn on seventh rank)
-                if (tile_mask & rank_7) {
-                    bb += s_one(s_one(tile_mask));
+                /* Move */
+                // if tile in front is not occupied
+                if (!(s_one(tile_mask) & (board->black | board->white))) {
+                    // single pawn push
+                    bb += s_one(tile_mask);
+                    // double pawn push (only possible when pawn on second rank)
+                    if ((tile_mask & rank_7) && !(s_one(s_one(tile_mask)) & (board->black | board->white))) {
+                        bb += s_one(s_one(tile_mask));
+                    }
                 }
-                // TODO: en pessant (only possible when board en passant square in under attack)
-                // Capture
+            // TODO: en pessant (only possible when board en passant square in under attack)
+            // Capture
                 if (se_one(tile_mask) & board->white) {
                     bb += se_one(tile_mask);
                 }
@@ -203,25 +207,54 @@ U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
                 }
             }
             break;
+        /* *********************************************** */
         case KNIGHT:
-            // move
+            // move in an L shape (2 + 1)
+            // TODO make extensible for more pieces or fairy chess
+            bb |= ne_one(n_one(tile_mask)) | ne_one(e_one(tile_mask))
+                | se_one(s_one(tile_mask)) | se_one(e_one(tile_mask))
+                | sw_one(s_one(tile_mask)) | sw_one(w_one(tile_mask))
+                | nw_one(n_one(tile_mask)) | nw_one(w_one(tile_mask)); // holy shit thank you copilot
             // capture
             break;
+        /* *********************************************** */
+                        /* Sliding Moves */
+        /* *********************************************** */
         case BISHOP:
-            // move
-            // capture
+            // move / capture
+            {int dir;
+                for (dir = 0; dir < 8; dir = dir + 2) {
+                    bb |= s_slide_with_obstacle(tile_mask, (board->white | board->black), dir, true);
+                }
+            }
             break;
+        /* *********************************************** */
         case ROOK:
-            // move
-            // capture
+            // move / capture
+            {int dir;
+                for (dir = 1; dir < 8; dir = dir + 2) {
+                    bb |= s_slide_with_obstacle(tile_mask, (board->white | board->black), dir, true);
+                }
+            }
             break;
+        /* *********************************************** */
         case QUEEN:
-            // move
-            // capture
+            // move / capture
+            {int dir;
+                for (dir = 0; dir < 8; ++dir) {
+                    bb |= s_slide_with_obstacle(tile_mask, (board->white | board->black), dir, true);
+                }
+            }
             break;
+        /* *********************************************** */
         case KING:
-            // move
-            // capture
+            // move / capture
+            {int dir;
+                for (dir = 0; dir < 8; ++dir) {
+                    U64 o = (board->white | board->black);
+                    bb |= shift_one(tile_mask, dir);
+                }
+            }
             // castles
             break;
     }
@@ -255,7 +288,10 @@ int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, const int tile)
 
 void chess_board_move(ChessBoard *board, const int from, const int to)
 {
-    if (from == to) return; // nothing to be done
+    if (from == to) {
+        WARNING("Tried to move piece to same tile: %d", from);
+        return; // nothing to be done
+    }
     int piece = board->piece_list[from];
     int color = piece & 0b11000;
     U64 targets_bb = (board->white | board->black) & (~(1ULL << from)); // all pieces except the one moving
@@ -280,10 +316,30 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
                 ERROR("Unable to remove piece from tile %d", to);
         }
     }
-
+    if (!(board->white_turn && color == TILE_WHITE) 
+        && !(!board->white_turn && color == TILE_BLACK)) {
+        WARNING("Cannot move piece not on turn. It's %s's turn but piece is %s", 
+            (board->white_turn) ? "White" : "Black",
+            (color == TILE_WHITE) ? "White" : "Black");
+        return;
+    }
+    if (!(chess_board_pseudo_legal_moves_BB(board, from) & (1ULL << to))) {
+        WARNING("Move is not pseudo-legal. Piece %c at %d cannot move to %d", 
+            piece_id_to_char(piece), from, to);
+        print_bitboard(chess_board_pseudo_legal_moves_BB(board, from));
+        return;
+    }
     if (!chess_board_remove_piece(board, from)) ERROR("Unable to remove piece from tile %d", from);
     if (!chess_board_add_piece(board, to, piece)) ERROR("Unable to add piece to tile %d", to);
     print_board_in_terminal(board);
+    board->white_turn = !board->white_turn;
+    board->move_counter += 1;
+    if ((piece & 0b111) == PAWN || (targets_bb & (1ULL << to))) {
+        board->fifty_move_counter = 0;
+    }
+    else {
+        board->fifty_move_counter += 1;
+    }
 }
 
 //////////////////////////////////////////
@@ -306,8 +362,8 @@ void print_board_in_terminal(ChessBoard *board)
           A B C D E F G H
     */
     int i,j;
-    if (board->white_turn)
-        printf("\nWhite to play\n\n");
+    if (!board->white_turn)
+        printf("\nWhite to play\n");
     else
         printf("\nBlack to play\n");
 
@@ -492,8 +548,7 @@ void print_bitboard(uint64_t bb) // Maybe depreciate
         }
         row[8] = '\0';
         j = 0;
-        puts(row);
-        printf("\n");
+        puts(row); // already prints newline character
         i--;
     }
     printf("   a b c d e f g h \n");
