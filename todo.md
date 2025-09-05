@@ -1,5 +1,7 @@
 # TODO
 
+- [ ] Debug the bbroken move generator logic using the program `print_bitboard.exe` at `~/source` and Cmake Debugger (command pallet)
+
 ## chess_engine.c
 
 - [ ] Implement allowed moves generator (both bitboard and list)

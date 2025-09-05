@@ -25,8 +25,9 @@ typedef struct ChessBoard {
     bool white_turn; // 1: White turn, 0: Black turn
     uint16_t move_counter; // how many total half moves have been played
     uint16_t fifty_move_counter; // how many half move have been played since last capture or pawn move
-    uint16_t en_passant; // 0-63 tile id, >=64 no move allowed
-
+    uint16_t en_passant; // Last 4 bits: 0-63 tile id, 
+    // First bit = White Castle left, Second bit = White Castle right
+    // Third bit = Black Castle left, Fourth bit = Black Castle right
     // function pointers (submit to the dark side)
     
 } ChessBoard;
@@ -73,7 +74,7 @@ void precomputed_bb_free(Precomputed_BB *pbb);
 int chess_board_add_piece(ChessBoard *board, const int tile, const int piece_id);
 int chess_board_remove_piece(ChessBoard *board, const int tile);
 void chess_board_move(ChessBoard *board, int from, int to);
-U64 chess_board_pseudo_legal_get_moves_BB(ChessBoard *board, int tile);
+U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, int tile);
 int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, int tile);
 
 /* Utilities */
@@ -85,4 +86,4 @@ void generate_board_from_FEN(ChessBoard* board, const char *FEN_string);
 void print_board_in_terminal_from_FEN(const char *FEN_string);
 void print_bitboard(U64 bb);
 
-#endif # CHESS_ENGINE_H
+#endif 

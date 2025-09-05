@@ -1,3 +1,40 @@
+// https://www.chessprogramming.org/BitScan#bsfbsr
+//These processor instructions work only for 64-bit processors
+#ifdef _MSC_VER
+    #include <intrin.h>
+    #ifdef _WIN64
+        #pragma intrinsic(_BitScanForward64)
+        #pragma intrinsic(_BitScanReverse64)
+        #define USING_INTRINSICS
+    #endif
+#elif defined(__GNUC__) && defined(__LP64__)
+    static INLINE unsigned char _BitScanForward64(unsigned long* Index, U64 Mask)
+    {
+        U64 Ret;
+        __asm__
+        (
+            "bsfq %[Mask], %[Ret]"
+            :[Ret] "=r" (Ret)
+            :[Mask] "mr" (Mask)
+        );
+        *Index = (unsigned long)Ret;
+        return Mask?1:0;
+    }
+    static INLINE unsigned char _BitScanReverse64(unsigned long* Index, U64 Mask)
+    {
+        U64 Ret;
+        __asm__
+        (
+            "bsrq %[Mask], %[Ret]"
+            :[Ret] "=r" (Ret)
+            :[Mask] "mr" (Mask)
+        );
+        *Index = (unsigned long)Ret;
+        return Mask?1:0;
+    }
+    #define USING_INTRINSICS
+#endif
+
 #include <stdint.h>
 typedef uint64_t U64;
 
@@ -16,29 +53,24 @@ U64 ne_one (U64 b) {return (b << 9) & notAFile;}
 U64 se_one (U64 b) {return (b >> 7) & notAFile;}
 U64 nw_one (U64 b) {return (b << 7) & notHFile;}
 
-const U64 rank_0 = 0x00000000000000ff;
-const U64 rank_1 = 0x000000000000ff00;
-const U64 rank_2 = 0x0000000000ff0000;
-const U64 rank_3 = 0x00000000ff000000;
-const U64 rank_4 = 0x000000ff00000000;
-const U64 rank_5 = 0x0000ff0000000000;
-const U64 rank_6 = 0x00ff000000000000;
-const U64 rank_7 = 0xff00000000000000;
-const U64 file_0 = 0x0101010101010101;
-const U64 file_1 = 0x0202020202020202;
-const U64 file_2 = 0x0404040404040404;
-const U64 file_3 = 0x0808080808080808;
-const U64 file_4 = 0x1010101010101010;
-const U64 file_5 = 0x2020202020202020;
-const U64 file_6 = 0x4040404040404040;
-const U64 file_7 = 0x8080808080808080;
+const U64 rank_1 = 0x00000000000000ff;
+const U64 rank_2 = 0x000000000000ff00;
+const U64 rank_3 = 0x0000000000ff0000;
+const U64 rank_4 = 0x00000000ff000000;
+const U64 rank_5 = 0x000000ff00000000;
+const U64 rank_6 = 0x0000ff0000000000;
+const U64 rank_7 = 0x00ff000000000000;
+const U64 rank_8 = 0xff00000000000000;
+const U64 file_1 = 0x0101010101010101;
+const U64 file_2 = 0x0202020202020202;
+const U64 file_3 = 0x0404040404040404;
+const U64 file_4 = 0x0808080808080808;
+const U64 file_5 = 0x1010101010101010;
+const U64 file_6 = 0x2020202020202020;
+const U64 file_7 = 0x4040404040404040;
+const U64 file_8 = 0x8080808080808080;
 
-/* Sliding bitboard shifts */
-/* will keep applying shifts and leave line of bits in cardinal directions */
-U64 s_slide (U64 b)
-{
-    U64 cursor = b;
-}
+
 U64 n_slide (U64 b);
 U64 e_slide (U64 b);
 U64 w_slide (U64 b);
@@ -59,7 +91,7 @@ U64 generic_rotation(U64 b, int s) { // Custom
 // U64 rotateRight(U64 x, int s) {return (x >> s) | (x << (64-s));}
 
 U64 gen_shift(U64 b, int s) {return (s > 0)? (b << s) : (b >> -s);}
-/* Alternatively */
+/* Alternatively (branchless)*/
 // U64 genShift(U64 x, int s) {
 //    char left  =   (char) s;
 //    char right = -((char)(s >> 8) & left);
@@ -79,9 +111,24 @@ const U64 avoid_wrap[8] =
     0xffffffffffffff00, // Dir 8: not rank 1
 };
 
-U64 shift_one (U64 b, int dir8) {
-   return rotate_left(b, shift[dir8]) & avoid_wrap[dir8];
-}
 
 U64 single_bit_set(int pos) {return 1ULL << (pos);}
 
+/* Sliding bitboard shifts */
+/* will keep applying shifts and leave line of bits in cardinal directions */
+/* */
+U64 shift_one (U64 b, int dir8) {
+   return rotate_left(b, shift[dir8]) & avoid_wrap[dir8];
+}
+U64 s_slide_with_obstacle (U64 b, U64 obstacle, int dir, bool include_obstacle)
+{   
+    U64 bb = 0ULL;
+    U64 cursor = b;
+    while (cursor) {
+        cursor = shift_one(cursor, dir);
+        if (cursor & obstacle) break;
+        bb |= cursor;
+    }
+    if (include_obstacle) bb |= cursor;
+    return bb;
+}

@@ -8,7 +8,7 @@
 /// @param board 
 void chess_board_init(ChessBoard *board)
 {
-    printf("%i", sizeof (board->bitboards));
+    printf("sizeof board->bitboards = %i\n", (int) (sizeof (board->bitboards)));
     memset(board->bitboards, 0, sizeof (board->bitboards));
     memset(board->piece_list, 0, sizeof (board->piece_list));
     board->castling_avaliablility = 0;
@@ -17,6 +17,7 @@ void chess_board_init(ChessBoard *board)
     board->white_turn = true;
     board->move_counter = 0;
     board->fifty_move_counter = 0;
+    board->en_passant = 0xF000; // left and right castle are allowed
 }
 /// @brief destructor for ChessBoard object
 /// @param board 
@@ -149,7 +150,7 @@ int chess_board_remove_piece(ChessBoard *board, const int tile)
 /// @param board
 /// @param tile The tile of the piece we should calculate moves for
 /// @return Bitboard representing the valid moves
-U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile) 
+U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, int tile)
 {
     uint64_t tile_mask = (1ULL << tile);
     int piece_id = board->piece_list[tile];
@@ -182,41 +183,74 @@ U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
                 }
             }
             if (color == TILE_BLACK) {
-                // single pawn push (always possible)
-                bb += s_one(tile_mask);
-                // double pawn push (only possible when pawn on second rank)
-                if (tile_mask & rank_2) {
-                    bb += s_one(s_one(tile_mask));
+                /* Move */
+                // if tile in front is not occupied
+                if (!(s_one(tile_mask) & (board->black | board->white))) {
+                    // single pawn push
+                    bb += s_one(tile_mask);
+                    // double pawn push (only possible when pawn on second rank)
+                    if ((tile_mask & rank_7) && !(s_one(s_one(tile_mask)) & (board->black | board->white))) {
+                        bb += s_one(s_one(tile_mask));
+                    }
                 }
             // TODO: en pessant (only possible when board en passant square in under attack)
             // Capture
-                if (se_one(tile_mask) & board->black) {
+                if (se_one(tile_mask) & board->white) {
                     bb += se_one(tile_mask);
                 }
-                if (sw_one(tile_mask) & board->black) {
+                if (sw_one(tile_mask) & board->white) {
                     bb += sw_one(tile_mask);
                 }
             }
             break;
+        /* *********************************************** */
         case KNIGHT:
-            // move
+            // move in an L shape (2 + 1)
+            // TODO make extensible for more pieces or fairy chess
+            bb |= ne_one(n_one(tile_mask)) | ne_one(e_one(tile_mask))
+                | se_one(s_one(tile_mask)) | se_one(e_one(tile_mask))
+                | sw_one(s_one(tile_mask)) | sw_one(w_one(tile_mask))
+                | nw_one(n_one(tile_mask)) | nw_one(w_one(tile_mask)); // holy shit thank you copilot
             // capture
             break;
+        /* *********************************************** */
+                        /* Sliding Moves */
+        /* *********************************************** */
         case BISHOP:
-            // move
-            // capture
+            // move / capture
+            {int dir;
+                for (dir = 0; dir < 8; dir = dir + 2) {
+                    bb |= s_slide_with_obstacle(tile_mask, (board->white | board->black), dir, true);
+                }
+            }
             break;
+        /* *********************************************** */
         case ROOK:
-            // move
-            // capture
+            // move / capture
+            {int dir;
+                for (dir = 1; dir < 8; dir = dir + 2) {
+                    bb |= s_slide_with_obstacle(tile_mask, (board->white | board->black), dir, true);
+                }
+            }
             break;
+        /* *********************************************** */
         case QUEEN:
-            // move
-            // capture
+            // move / capture
+            {int dir;
+                for (dir = 0; dir < 8; ++dir) {
+                    bb |= s_slide_with_obstacle(tile_mask, (board->white | board->black), dir, true);
+                }
+            }
             break;
+        /* *********************************************** */
         case KING:
-            // move
-            // capture
+            // move / capture
+            {int dir;
+                for (dir = 0; dir < 8; ++dir) {
+                    U64 o = (board->white | board->black);
+                    bb |= shift_one(tile_mask, dir);
+                }
+            }
             // castles
             break;
     }
@@ -249,9 +283,13 @@ int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, const int tile)
 
 void chess_board_move(ChessBoard *board, const int from, const int to)
 {
-    if (from == to) return; // nothing to be done
+    if (from == to) {
+        WARNING("Tried to move piece to same tile: %d", from);
+        return; // nothing to be done
+    }
     int piece = board->piece_list[from];
     int color = piece & 0b11000;
+    U64 targets_bb = (board->white | board->black) & (~(1ULL << from)); // all pieces except the one moving
     INFO("Move piece %c from tile %d to tile %d", piece_id_to_char(piece), from, to);
     
     // Check for captures
@@ -267,13 +305,32 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
         if (board->white & (1ULL << to)) {
             if (!chess_board_remove_piece(board, to)) 
                 ERROR("Unable to remove piece from tile %d", to);
-
         }
     }
-
+    if (!(board->white_turn && color == TILE_WHITE) 
+        && !(!board->white_turn && color == TILE_BLACK)) {
+        WARNING("Cannot move piece not on turn. It's %s's turn but piece is %s", 
+            (board->white_turn) ? "White" : "Black",
+            (color == TILE_WHITE) ? "White" : "Black");
+        return;
+    }
+    if (!(chess_board_pseudo_legal_moves_BB(board, from) & (1ULL << to))) {
+        WARNING("Move is not pseudo-legal. Piece %c at %d cannot move to %d", 
+            piece_id_to_char(piece), from, to);
+        print_bitboard(chess_board_pseudo_legal_moves_BB(board, from));
+        return;
+    }
     if (!chess_board_remove_piece(board, from)) ERROR("Unable to remove piece from tile %d", from);
     if (!chess_board_add_piece(board, to, piece)) ERROR("Unable to add piece to tile %d", to);
     print_board_in_terminal(board);
+    board->white_turn = !board->white_turn;
+    board->move_counter += 1;
+    if ((piece & 0b111) == PAWN || (targets_bb & (1ULL << to))) {
+        board->fifty_move_counter = 0;
+    }
+    else {
+        board->fifty_move_counter += 1;
+    }
 }
 
 //////////////////////////////////////////
@@ -285,21 +342,21 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
 void print_board_in_terminal(ChessBoard *board)
 {
     /* [White / Black] to play
-       8 |r|n|b|q|k|b|n|r|
-       7 |p|p|p|p|p|p|p|p|
+       8 |r|n|b|q|k|b|n|r| [L][R]
+       7 |p|p|p|p|p|p|p|p| move c:[n]
        6 | | | | | | | | |
        5 | | | | | | | | |
        4 | | | | | | | | |
        3 | | | | | | | | |
-       2 |P|P|P|P|P|P|P|P|
-       1 |R|N|B|Q|K|B|N|R|
+       2 |P|P|P|P|P|P|P|P| 50 move c:[n]
+       1 |R|N|B|Q|K|B|N|R| [L][R]
           A B C D E F G H
     */
     int i,j;
-    if (board->white_turn)
-        printf("\nWhite to play\n\n");
+    if (!board->white_turn)
+        printf("\nWhite to play\n");
     else
-        printf("\nBlack to play\n\n");
+        printf("\nBlack to play\n");
 
     for (i = 7; i >= 0; i--) // for each rank
     {
@@ -311,6 +368,20 @@ void print_board_in_terminal(ChessBoard *board)
             char symb = piece_id_to_char(piece);
             printf("%c", symb);
             printf("|");
+        }
+        if (i == 0) {
+            if (board->en_passant & (1 << 15)) printf(" [L]");
+            if (board->en_passant & (1 << 14)) printf(" [R]");
+        }
+        if (i == 1) {
+            printf(" 50 move c:[%d]", board->fifty_move_counter);
+        }
+        if (i == 6) {
+            printf(" move c:[%d]", board->move_counter);
+        }   
+        if (i == 7) {
+            if (board->en_passant & (1 << 15)) printf(" [L]");
+            if (board->en_passant & (1 << 14)) printf(" [R]");
         }
         printf("\n");
     }
@@ -441,11 +512,7 @@ void print_bitboard(U64 bb)
         }
         row[8] = '\0';
         j = 0;
-        puts(row);
-        printf("\n");
+        puts(row); // already prints newline character
         i--;
     }
-}
-
-U64 get_occupied_tiles_white(ChessBoard *board) {
 }
