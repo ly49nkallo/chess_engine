@@ -1,3 +1,40 @@
+// https://www.chessprogramming.org/BitScan#bsfbsr
+//These processor instructions work only for 64-bit processors
+#ifdef _MSC_VER
+    #include <intrin.h>
+    #ifdef _WIN64
+        #pragma intrinsic(_BitScanForward64)
+        #pragma intrinsic(_BitScanReverse64)
+        #define USING_INTRINSICS
+    #endif
+#elif defined(__GNUC__) && defined(__LP64__)
+    static INLINE unsigned char _BitScanForward64(unsigned long* Index, U64 Mask)
+    {
+        U64 Ret;
+        __asm__
+        (
+            "bsfq %[Mask], %[Ret]"
+            :[Ret] "=r" (Ret)
+            :[Mask] "mr" (Mask)
+        );
+        *Index = (unsigned long)Ret;
+        return Mask?1:0;
+    }
+    static INLINE unsigned char _BitScanReverse64(unsigned long* Index, U64 Mask)
+    {
+        U64 Ret;
+        __asm__
+        (
+            "bsrq %[Mask], %[Ret]"
+            :[Ret] "=r" (Ret)
+            :[Mask] "mr" (Mask)
+        );
+        *Index = (unsigned long)Ret;
+        return Mask?1:0;
+    }
+    #define USING_INTRINSICS
+#endif
+
 #include <stdint.h>
 typedef uint64_t U64;
 
@@ -49,13 +86,16 @@ U64 nw_slide (U64 b);
 
 U64 rotate_left (U64 b, int s) {return _rotl64(b, s);}
 U64 rotate_right (U64 b, int s) {return _rotr64(b, s);}
+U64 generic_rotation(U64 b, int s) { // Custom
+    return (s > 0) ? _rotl64(b, s) : _rotr64(b, s);
+}
 
 /* Alternatively */
 // U64 rotateLeft (U64 x, int s) {return (x << s) | (x >> (64-s));}
 // U64 rotateRight(U64 x, int s) {return (x >> s) | (x << (64-s));}
 
 U64 gen_shift(U64 b, int s) {return (s > 0)? (b << s) : (b >> -s);}
-/* Alternatively */
+/* Alternatively (branchless)*/
 // U64 genShift(U64 x, int s) {
 //    char left  =   (char) s;
 //    char right = -((char)(s >> 8) & left);
@@ -85,6 +125,24 @@ const U64 avoid_wrap[8] =
     0xffffffffffffff00, // Dir 8: not rank 1
 };
 
-U64 shiftOne (U64 b, int dir8) {
+
+U64 single_bit_set(int pos) {return 1ULL << (pos);}
+
+/* Sliding bitboard shifts */
+/* will keep applying shifts and leave line of bits in cardinal directions */
+/* */
+U64 shift_one (U64 b, int dir8) {
    return rotate_left(b, shift[dir8]) & avoid_wrap[dir8];
+}
+U64 s_slide_with_obstacle (U64 b, U64 obstacle, int dir, bool include_obstacle)
+{   
+    U64 bb = 0ULL;
+    U64 cursor = b;
+    while (cursor) {
+        cursor = shift_one(cursor, dir);
+        if (cursor & obstacle) break;
+        bb |= cursor;
+    }
+    if (include_obstacle) bb |= cursor;
+    return bb;
 }

@@ -1,21 +1,21 @@
 #include "game_screen.h"
 
 /* LOCAL VARIABLES */
-static long frameCount;
+static unsigned long frameCount;
 static int screenEnded;
-static struct BoardTheme* currentBoardTheme;
-static ChessBoard* current_board;
+static struct BoardTheme *currentBoardTheme;
+static ChessBoard *current_board;
 static int board_height, board_width;
 static Vector2 board_position;
 static int whiteSideDown;
 static Font boardTextFont;
 static Texture2D spritesheet;
+/* You can see where I gave up and changed to snake case */
 static int sprite_size;
 static int hovered_tile_idx;
 static int selected_tile_idx;
 static int dragging_piece;
-static int legal_moves_bb;
-
+static U64 legal_moves_bb;
 
 void _render_piece(Rectangle dest, int piece);
 
@@ -49,10 +49,11 @@ void game_screen_init(void)
     /* Load Spritesheet */
     char* spritesheet_path;
     Image low_res_spritesheet = LoadImage(LOW_RES_SPRITESHEET_PATH);
-    Image high_res_spritesheet = LoadImage(HIGH_RES_SPRITESHEET_PATH);
+    // Image high_res_spritesheet = LoadImage(HIGH_RES_SPRITESHEET_PATH);
     int screen_width = GetScreenWidth();
     int screen_height = GetScreenHeight();
-    if (low_res_spritesheet.height / 2 < screen_height / 8)
+    bool use_high_res = low_res_spritesheet.height / 2 < screen_height / 8; 
+    if (use_high_res)
         spritesheet_path = HIGH_RES_SPRITESHEET_PATH;
     else
         spritesheet_path = LOW_RES_SPRITESHEET_PATH;
@@ -61,7 +62,7 @@ void game_screen_init(void)
     printf("INFO: Spritesheet %s Loaded Sucessfully\n", spritesheet_path);
 
     current_board = MemAlloc(sizeof(ChessBoard));
-    if (current_board == NULL) throw_error(__LINE__, __FILE__, "Not enough RAM");
+    if (current_board == NULL) throw_error(__LINE__, __FILE__, "Not enough **WHAM**");
     chess_board_init(current_board);
     generate_board_from_FEN(current_board, CE_FEN_STARTING_POSITION);
 
@@ -88,7 +89,11 @@ void game_screen_update(void)
     if (hovered_tile_idx > -1 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         if ((current_board->piece_list[hovered_tile_idx] & 0b111) != EMPTY) {
             selected_tile_idx = hovered_tile_idx;
-            legal_moves_bb = chess_board_get_pseudo_legal_moves_BB(current_board, selected_tile_idx);
+            legal_moves_bb = chess_board_pseudo_legal_moves_BB(current_board, selected_tile_idx);
+            printf("Allowed Moves for piece [%c] at position %i:\n", 
+                piece_id_to_char(current_board->piece_list[selected_tile_idx] & 0b111),
+                selected_tile_idx);
+            print_bitboard(legal_moves_bb);
         }
         else {
             selected_tile_idx = -1;
@@ -149,14 +154,29 @@ void render_tiles(void)
             (float) tileWidth, (float) tileWidth};
             DrawRectangleRec(r, YELLOW);
     }
+}
+
+/// @brief render the legal moves onto the screen. Defer until after pieces are
+/// rendered so that pieces are on top of the circles.
+void render_legal_moves(void) {
     /* Render small circle over legal moves */
+    int screen_width = GetScreenWidth();
+    int screen_height = GetScreenHeight();
+    int tileWidth = board_width / 8;
     if (selected_tile_idx > -1 && legal_moves_bb) {
         int x, y, i;
         for (i = 0; i < 64; i++) {
             if (legal_moves_bb & (1ULL << i)) {
-                x = board_position.x + (tileWidth * (i % 8)) + tileWidth / 2;
-                y = board_position.y + (tileWidth * (7 - (i / 8))) + tileWidth / 2;
-                DrawCircle(x, y, tileWidth / 6, currentBoardTheme->legalMoveColor);
+                x = (int)board_position.x + (tileWidth * (i % 8)) + tileWidth / 2;
+                y = (int)board_position.y + (tileWidth * (7 - (i / 8))) + tileWidth / 2;
+                Vector2 center = {(float)x, (float)y};
+                /* If the move happens to capture a piece, then mark that piece with a larger circle */
+                if ((current_board->black | current_board->white) & (1ULL << i)) {
+                    DrawRing(center, (float)tileWidth / 4, (float)tileWidth / 3, 0, 360, 30, currentBoardTheme->legalMoveColor);
+                }
+                else {
+                    DrawCircle(x, y, (float)tileWidth / 6, currentBoardTheme->legalMoveColor);
+                }
             }
         }
     }
@@ -244,8 +264,8 @@ void _render_piece(Rectangle dest, int piece)
         Rectangle source = {
             (idx1 - 1) * sprite_size,
             (color) * sprite_size,
-            sprite_size, 
-            sprite_size
+            (float) sprite_size, 
+            (float) sprite_size
         };
         DrawTexturePro(spritesheet, source, dest, origin, rotation, tint);
     }
@@ -275,12 +295,12 @@ void render_dragged_piece()
 {
     int tileWidth = board_width / 8;
     if (dragging_piece) {
-        float mouse_x = GetMouseX();
-        float mouse_y = GetMouseY();
+        int mouse_x = GetMouseX();
+        int mouse_y = GetMouseY();
         int piece_id = current_board->piece_list[selected_tile_idx];
         Rectangle dest = {
-            mouse_x - (tileWidth / 2),
-            mouse_y - (tileWidth / 2),
+            (float)mouse_x - (tileWidth / 2),
+            (float)mouse_y - (tileWidth / 2),
             (float)tileWidth, (float)tileWidth
         };
         _render_piece(dest, piece_id);
@@ -295,6 +315,7 @@ void game_screen_draw(void)
     render_tiles();
     render_labels();
     render_pieces(current_board);
+    render_legal_moves();
     render_dragged_piece();
 
 }

@@ -7,8 +7,9 @@
 #error "Web is not supported"
 #endif
 
-static int screen_width = 800;
-static int screen_height = 550;
+
+static int screen_width = 1800;
+static int screen_height = 1550;
 static int frame_rate = 60;
 static const ScreenState startingScreenState = GAME;
 static ScreenState currentScreenState = 0;

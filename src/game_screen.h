@@ -29,6 +29,7 @@ void game_screen_update(void);
 void render_tiles(void);
 void render_labels(void);
 void render_pieces();
+void render_legal_moves(void);
 void render_dragged_piece();
 void game_screen_draw(void);
 int game_screen_ended(void);
