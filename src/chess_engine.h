@@ -12,14 +12,15 @@
 #define CE_FEN_STARTING_POSITION "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 #define ID_FROM_RANK_FILE(r, f) (r * 8 + f) // Zero-indexed rank and file
 
+typedef uint64_t U64;
 /// @brief The structure containing all information about a chess board position
 typedef struct ChessBoard {
     // implemented using bitboards b/c im like that fr
-    uint64_t bitboards[7]; // indexed by the rank_id enum
+    U64 bitboards[7]; // indexed by the rank_id enum
     uint8_t piece_list[64]; 
     uint16_t castling_avaliablility; // 4 BITS KQkq : (white king-side, white queen-side, black king-side, black queen-side)
-    uint64_t black;
-    uint64_t white;
+    U64 black;
+    U64 white;
     bool white_turn; // 1: White turn, 0: Black turn
     uint16_t move_counter; // how many total half moves have been played
     uint16_t fifty_move_counter; // how many half move have been played since last capture or pawn move

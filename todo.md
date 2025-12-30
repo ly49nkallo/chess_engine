@@ -8,6 +8,6 @@
 
 ## game_screen.c
 
-- [ ] Select tile by left clicking. Draw small circles on tiles that can be moved to
+- [x] Select tile by left clicking. Draw small circles on tiles that can be moved to
 - [ ] Highlight tile by right clicking
 - [ ] Draw Arrow by right clicking and dragging (all arrows deleted when piece is selected)

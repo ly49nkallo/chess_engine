@@ -79,7 +79,7 @@ void game_screen_update(void)
         hovered_tile_idx = (mouse_x - (int)board_position.x) / tile_size +
                 (7 - ((mouse_y - (int)board_position.y) / tile_size)) * 8;
         if (hovered_tile_idx > 63 || hovered_tile_idx < 0)
-            throw_error(__LINE__, __FILE__, "Hovered tile out of bounds. Got %d", hovered_tile_idx);
+            ERROR("Hovered tile out of bounds. Got %d", hovered_tile_idx);
     }
     else {
         hovered_tile_idx = -1;
@@ -89,10 +89,6 @@ void game_screen_update(void)
         if ((current_board->piece_list[hovered_tile_idx] & 0b111) != EMPTY) {
             selected_tile_idx = hovered_tile_idx;
             legal_moves_bb = chess_board_get_pseudo_legal_moves_BB(current_board, selected_tile_idx);
-            printf("Allowed Moves for piece [%c] at position %i:\n", 
-                piece_id_to_char(current_board->piece_list[selected_tile_idx] & 0b111),
-                selected_tile_idx);
-            print_bitboard(legal_moves_bb);
         }
         else {
             selected_tile_idx = -1;
@@ -155,12 +151,25 @@ void render_tiles(void)
     }
     /* Render small circle over legal moves */
     if (selected_tile_idx > -1 && legal_moves_bb) {
-        int x, y;
-        for (int i = 0; i < 64; i++) {
+        int x, y, i;
+        for (i = 0; i < 64; i++) {
             if (legal_moves_bb & (1ULL << i)) {
                 x = board_position.x + (tileWidth * (i % 8)) + tileWidth / 2;
                 y = board_position.y + (tileWidth * (7 - (i / 8))) + tileWidth / 2;
                 DrawCircle(x, y, tileWidth / 6, currentBoardTheme->legalMoveColor);
+            }
+        }
+    }
+    /* Render larger circle over legal moves the capture a piece */
+    if (selected_tile_idx > -1 && legal_moves_bb) {
+        int x, y, i;
+        for (i = 0; i < 64; i++) {
+            if (legal_moves_bb & (1ULL << i) & (current_board->white | current_board->black)) {
+                if ((current_board->piece_list[i] & 0b11000) != (current_board->piece_list[selected_tile_idx] & 0b11000)) {
+                    x = board_position.x + (tileWidth * (i % 8)) + tileWidth / 2;
+                    y = board_position.y + (tileWidth * (7 - (i / 8))) + tileWidth / 2;
+                    DrawCircle(x, y, tileWidth / 4, currentBoardTheme->legalMoveColor);
+                }
             }
         }
     }
@@ -191,10 +200,8 @@ void render_labels(void)
         symbolPosition.y += tileWidth/8; // Small Correction Needed For Some Reason ...
         if ((symbolPosition.x <= 0 || symbolPosition.x >= screen_width)
             || (symbolPosition.y <= 0 || symbolPosition.y >= screen_height))
-        {
-            printf("ERROR: Symbol Position is out of bounds POS:(%f, %f)\n", symbolPosition.x, symbolPosition.y);
-            exit(1);
-        }
+            ERROR("Symbol Position is out of bounds POS:(%f, %f)\n", symbolPosition.x, symbolPosition.y);
+            
         DrawTextEx(boardTextFont, symb, symbolPosition, 20, 5, BLACK);
     }
     // files
@@ -208,9 +215,7 @@ void render_labels(void)
         // printf("DEBUG: Board Position: (%f, %f)", symbolPosition.x, symbolPosition.y);
         if ((symbolPosition.x <= 0 || symbolPosition.x >= screen_width)
             || (symbolPosition.y <= 0 || symbolPosition.y >= screen_height))
-        {
-            throw_error(__LINE__, __FILE__, "ERROR: Symbol Position is out of bounds POS:(%f, %f)\n", symbolPosition.x, symbolPosition.y);
-        }
+            ERROR("Symbol Position is out of bounds POS:(%f, %f)\n", symbolPosition.x, symbolPosition.y);
         DrawTextEx(boardTextFont, symb, symbolPosition, 20, 5, BLACK);
     }
 

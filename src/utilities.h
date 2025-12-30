@@ -14,5 +14,6 @@ void throw_not_implemented_error(int line_number, const char* file_name);
 #define ERROR(m, ...) throw_error(__LINE__, __FILE__, m, __VA_ARGS__)
 #define WARNING(m, ...) throw_warning(__LINE__, __FILE__, m, __VA_ARGS__)
 #define INFO(m, ...) throw_info(__LINE__, __FILE__, m, __VA_ARGS__)
+#define NOT_IMPLEMENTED() throw_not_implemented_error(__LINE__, __FILE__)
 
 #endif // CE_UTILITIES_H
