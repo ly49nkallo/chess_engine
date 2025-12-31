@@ -175,19 +175,6 @@ U64 _castle_moves_for_piece(const ChessBoard *board, const int tile, const int c
                     bb |= (1ULL << 6);
                 }
             }
-        } else if (rank == ROOK) {
-            if (tile == 0 && (board->en_passant & (1U << 15))) { // white queen side
-                if (board->piece_list[4] == (KING | TILE_WHITE)
-                    && !(occupied & ((1ULL << 1) | (1ULL << 2) | (1ULL << 3)))) {
-                    bb |= (1ULL << 3);
-                }
-            }
-            if (tile == 7 && (board->en_passant & (1U << 14))) { // white king side
-                if (board->piece_list[4] == (KING | TILE_WHITE)
-                    && !(occupied & ((1ULL << 5) | (1ULL << 6)))) {
-                    bb |= (1ULL << 5);
-                }
-            }
         }
     } else if (color == TILE_BLACK) {
         if (rank == KING && tile == 60) {
@@ -201,19 +188,6 @@ U64 _castle_moves_for_piece(const ChessBoard *board, const int tile, const int c
                 if (!(occupied & ((1ULL << 61) | (1ULL << 62)))
                     && board->piece_list[63] == (ROOK | TILE_BLACK)) {
                     bb |= (1ULL << 62);
-                }
-            }
-        } else if (rank == ROOK) {
-            if (tile == 56 && (board->en_passant & (1U << 13))) { // black queen side
-                if (board->piece_list[60] == (KING | TILE_BLACK)
-                    && !(occupied & ((1ULL << 57) | (1ULL << 58) | (1ULL << 59)))) {
-                    bb |= (1ULL << 59);
-                }
-            }
-            if (tile == 63 && (board->en_passant & (1U << 12))) { // black king side
-                if (board->piece_list[60] == (KING | TILE_BLACK)
-                    && !(occupied & ((1ULL << 61) | (1ULL << 62)))) {
-                    bb |= (1ULL << 61);
                 }
             }
         }
@@ -304,7 +278,6 @@ U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
                     bb |= s_slide_with_obstacle(tile_mask, (board->white | board->black), dir, true);
                 }
             }
-            bb |= _castle_moves_for_piece(board, tile, color, rank);
             break;
         /* *********************************************** */
         case QUEEN:
