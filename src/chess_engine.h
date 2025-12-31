@@ -75,8 +75,8 @@ void precomputed_bb_free(Precomputed_BB *pbb);
 int chess_board_add_piece(ChessBoard *board, const int tile, const int piece_id);
 int chess_board_remove_piece(ChessBoard *board, const int tile);
 void chess_board_move(ChessBoard *board, int from, int to);
-U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, int tile);
-int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, int tile);
+U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, int tile);
+int *chess_board_pseudo_legal_moves_arr(ChessBoard *board, int tile);
 
 /* Utilities */
 

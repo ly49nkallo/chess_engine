@@ -244,7 +244,7 @@ void render_labels(void)
 }
 void _render_piece(Rectangle dest, int piece) 
 {
-    const Vector2 origin = {0, 0};
+    const Vector2 origin = {1, 1}; // a small offest due to a graphical error; should normally be (0, 0)
     const float rotation = 0;
     const Color tint = WHITE;
     int color = ((piece & 0b11000) == TILE_WHITE) ? 0 : 1; // 0: White, 1: Black
@@ -307,6 +307,17 @@ void render_dragged_piece()
         _render_piece(dest, piece_id);
     }
 }
+void render_turn_indicator() 
+{
+    int tileWidth = board_width / 8;
+    const char *turn_text = current_board->white_turn ? "White to move" : "Black to move";
+    Vector2 text_dims = MeasureTextEx(boardTextFont, turn_text, 20, 5);
+    Vector2 position = {
+        board_position.x + (board_width - text_dims.x) * 0.5f,
+        board_position.y - text_dims.y - (float)tileWidth / 4.0f
+    };
+    DrawTextEx(boardTextFont, turn_text, position, 20, 5, BLACK);
+}
 /// @brief Render logic for game screen. Performed once per frame
 void game_screen_draw(void)
 {
@@ -315,6 +326,7 @@ void game_screen_draw(void)
     DrawRectangle(0, 0, screen_width, screen_height, RAYWHITE); // background
     render_tiles();
     render_labels();
+    render_turn_indicator();
     render_pieces(current_board);
     render_legal_moves();
     render_dragged_piece();

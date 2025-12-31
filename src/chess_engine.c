@@ -154,7 +154,75 @@ int chess_board_remove_piece(ChessBoard *board, const int tile)
 /// @param board
 /// @param tile The tile of the piece we should calculate moves for
 /// @return Bitboard representing the valid moves
-U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
+U64 _castle_moves_for_piece(const ChessBoard *board, const int tile, const int color, const int rank)
+{
+    const U64 occupied = (board->white | board->black);
+    U64 bb = 0ULL;
+
+    // Castling availability is stored in en_passant high bits per existing code.
+    // Pseudo-legal only: does not verify check or attack on transit squares.
+    if (color == TILE_WHITE) {
+        if (rank == KING && tile == 4) {
+            if (board->en_passant & (1U << 15)) { // white queen side
+                if (!(occupied & ((1ULL << 1) | (1ULL << 2) | (1ULL << 3)))
+                    && board->piece_list[0] == (ROOK | TILE_WHITE)) {
+                    bb |= (1ULL << 2);
+                }
+            }
+            if (board->en_passant & (1U << 14)) { // white king side
+                if (!(occupied & ((1ULL << 5) | (1ULL << 6)))
+                    && board->piece_list[7] == (ROOK | TILE_WHITE)) {
+                    bb |= (1ULL << 6);
+                }
+            }
+        } else if (rank == ROOK) {
+            if (tile == 0 && (board->en_passant & (1U << 15))) { // white queen side
+                if (board->piece_list[4] == (KING | TILE_WHITE)
+                    && !(occupied & ((1ULL << 1) | (1ULL << 2) | (1ULL << 3)))) {
+                    bb |= (1ULL << 3);
+                }
+            }
+            if (tile == 7 && (board->en_passant & (1U << 14))) { // white king side
+                if (board->piece_list[4] == (KING | TILE_WHITE)
+                    && !(occupied & ((1ULL << 5) | (1ULL << 6)))) {
+                    bb |= (1ULL << 5);
+                }
+            }
+        }
+    } else if (color == TILE_BLACK) {
+        if (rank == KING && tile == 60) {
+            if (board->en_passant & (1U << 13)) { // black queen side
+                if (!(occupied & ((1ULL << 57) | (1ULL << 58) | (1ULL << 59)))
+                    && board->piece_list[56] == (ROOK | TILE_BLACK)) {
+                    bb |= (1ULL << 58);
+                }
+            }
+            if (board->en_passant & (1U << 12)) { // black king side
+                if (!(occupied & ((1ULL << 61) | (1ULL << 62)))
+                    && board->piece_list[63] == (ROOK | TILE_BLACK)) {
+                    bb |= (1ULL << 62);
+                }
+            }
+        } else if (rank == ROOK) {
+            if (tile == 56 && (board->en_passant & (1U << 13))) { // black queen side
+                if (board->piece_list[60] == (KING | TILE_BLACK)
+                    && !(occupied & ((1ULL << 57) | (1ULL << 58) | (1ULL << 59)))) {
+                    bb |= (1ULL << 59);
+                }
+            }
+            if (tile == 63 && (board->en_passant & (1U << 12))) { // black king side
+                if (board->piece_list[60] == (KING | TILE_BLACK)
+                    && !(occupied & ((1ULL << 61) | (1ULL << 62)))) {
+                    bb |= (1ULL << 61);
+                }
+            }
+        }
+    }
+
+    return bb;
+}
+
+U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
 {
     U64 tile_mask = (1ULL << tile);
     int piece_id = board->piece_list[tile];
@@ -236,6 +304,7 @@ U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
                     bb |= s_slide_with_obstacle(tile_mask, (board->white | board->black), dir, true);
                 }
             }
+            bb |= _castle_moves_for_piece(board, tile, color, rank);
             break;
         /* *********************************************** */
         case QUEEN:
@@ -255,14 +324,9 @@ U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
                     bb |= shift_one(tile_mask, dir);
                 }
             }
-            // castles
+            bb |= _castle_moves_for_piece(board, tile, color, rank);
             break;
     }
-    /* Remove any move that would have our piece pass into our own piece of same color */
-    if (color == TILE_WHITE)
-        bb &= (~(board->white));
-    else /*if (color == TILE_BLACK)*/
-        bb &= (~(board->black));
     print_bitboard(bb);
     return bb;
 }
@@ -285,7 +349,11 @@ int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, const int tile)
     throw_not_implemented_error(__LINE__, __FILE__);
     return (void *)0;
 }
-
+/// @brief Move a piece from one tile to another, enforcing turn order and pseudo-legal moves.
+/// @param board
+/// @param from Source tile index (0-63)
+/// @param to Destination tile index (0-63)
+/// @note Captures opponent pieces on the destination square.
 void chess_board_move(ChessBoard *board, const int from, const int to)
 {
     if (from == to) {
@@ -297,25 +365,7 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
     U64 targets_bb = (board->white | board->black) & (~(1ULL << from)); // all pieces except the one moving
     INFO("Move piece %c from tile %d to tile %d", piece_id_to_char(piece), from, to);
 
-    // Check for captures
-    if (color == TILE_WHITE)
-    {
-        // If white captures black
-        if (board->black & (1ULL << to))
-        {
-            if (!chess_board_remove_piece(board, to))
-                ERROR("Unable to remove piece from tile %d", to);
-        }
-    }
-    else if (color == TILE_BLACK)
-    {
-        // If black captures white
-        if (board->white & (1ULL << to))
-        {
-            if (!chess_board_remove_piece(board, to))
-                ERROR("Unable to remove piece from tile %d", to);
-        }
-    }
+    // Validate move and enforce pseudo-legal moves, as well as turn order
     if (!(board->white_turn && color == TILE_WHITE) 
         && !(!board->white_turn && color == TILE_BLACK)) {
         WARNING("Cannot move piece not on turn. It's %s's turn but piece is %s", 
@@ -329,9 +379,27 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
         print_bitboard(chess_board_pseudo_legal_moves_BB(board, from));
         return;
     }
+
+    // Check for captures
+    if (color == TILE_WHITE)
+    {
+        // If white captures black
+        if (board->black & (1ULL << to)) {
+            if (!chess_board_remove_piece(board, to))
+                ERROR("Unable to remove piece from tile %d", to);
+        }
+    }
+    else if (color == TILE_BLACK)
+    {
+        // If black captures white
+        if (board->white & (1ULL << to)) {
+            if (!chess_board_remove_piece(board, to))
+                ERROR("Unable to remove piece from tile %d", to);
+        }
+    }
+    // Attempts to actually move the piece
     if (!chess_board_remove_piece(board, from)) ERROR("Unable to remove piece from tile %d", from);
     if (!chess_board_add_piece(board, to, piece)) ERROR("Unable to add piece to tile %d", to);
-    print_board_in_terminal(board);
     board->white_turn = !board->white_turn;
     board->move_counter += 1;
     if ((piece & 0b111) == PAWN || (targets_bb & (1ULL << to))) {
