@@ -318,6 +318,34 @@ void render_turn_indicator()
     };
     DrawTextEx(boardTextFont, turn_text, position, 20, 5, BLACK);
 }
+void render_check_indicator() 
+{
+    // TODO draw a red border around the king in check
+    ChessBoard *board = current_board;
+    int color_to_move = board->white_turn ? TILE_WHITE : TILE_BLACK;
+    if (chess_board_is_in_check(board, color_to_move)) {
+        // find king position
+        int king_tile = -1;
+        int i;
+        for (i = 0; i < 64; i++) {
+            int piece = board->piece_list[i];
+            if ((piece & 0b111) == KING && (piece & 0b11000) == (color_to_move)) {
+                king_tile = i;
+                break;
+            }
+        }
+        if (king_tile == -1) {
+            ERROR("Could not find king on board for color %s", 
+                (color_to_move == TILE_WHITE) ? "White" : "Black");
+            return;
+        }
+        int tileWidth = board_width / 8;
+        Rectangle r = {board_position.x + (tileWidth * (king_tile % 8)), 
+            board_position.y + (tileWidth * (7 - (king_tile / 8))), 
+            (float) tileWidth, (float) tileWidth};
+            DrawRectangleLinesEx(r, 5.0f, RED);
+    }
+}   
 /// @brief Render logic for game screen. Performed once per frame
 void game_screen_draw(void)
 {

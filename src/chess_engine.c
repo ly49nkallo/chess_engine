@@ -162,6 +162,7 @@ U64 _castle_moves_for_piece(const ChessBoard *board, const int tile, const int c
     // Castling availability is stored in en_passant high bits per existing code.
     // Pseudo-legal only: does not verify check or attack on transit squares.
     if (color == TILE_WHITE) {
+        // Only allow castling from the starting king square.
         if (rank == KING && tile == 4) {
             if (board->en_passant & (1U << 15)) { // white queen side
                 if (!(occupied & ((1ULL << 1) | (1ULL << 2) | (1ULL << 3)))
@@ -314,6 +315,182 @@ U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
     return bb;
 }
 
+// Fast check for whether a square is attacked by the given side.
+static bool is_square_attacked(const ChessBoard *board, const int square, const int attacker_color)
+{
+    const U64 occ = (board->white | board->black);
+    const U64 attackers = (attacker_color == TILE_WHITE) ? board->white : board->black;
+    const U64 mask = 1ULL << square;
+    const U64 pawns = board->bitboards[PAWN - 1] & attackers;
+    const U64 knights = board->bitboards[KNIGHT - 1] & attackers;
+    const U64 kings = board->bitboards[KING - 1] & attackers;
+    // Offsets match shift[] ordering in bitboard_utils (NE,E,SE,S,SW,W,NW,N).
+    const int dir_offset[8] = { 9, 1, -7, -8, -9, -1, 7, 8 };
+
+    // Pawn attacks are directional relative to the attacker.
+    if (attacker_color == TILE_WHITE) {
+        if ((sw_one(mask) | se_one(mask)) & pawns) return true;
+    } else {
+        if ((nw_one(mask) | ne_one(mask)) & pawns) return true;
+    }
+
+    {
+        // Knight jumps from the target square.
+        U64 knight_attacks = ne_one(n_one(mask)) | ne_one(e_one(mask))
+            | se_one(s_one(mask)) | se_one(e_one(mask))
+            | sw_one(s_one(mask)) | sw_one(w_one(mask))
+            | nw_one(n_one(mask)) | nw_one(w_one(mask));
+        if (knight_attacks & knights) return true;
+    }
+
+    {
+        // Adjacent king attacks (prevents illegal king adjacency).
+        U64 king_attacks = 0ULL;
+        for (int dir = 0; dir < 8; ++dir) {
+            king_attacks |= shift_one(mask, dir);
+        }
+        if (king_attacks & kings) return true;
+    }
+
+    // Ray-trace sliders; stop at first blocker and check its rank.
+    for (int dir = 0; dir < 8; ++dir) {
+        U64 cursor = mask;
+        int idx = square;
+        while (1) {
+            cursor = shift_one(cursor, dir);
+            if (!cursor) break;
+            idx += dir_offset[dir];
+            if (cursor & occ) {
+                int piece = board->piece_list[idx];
+                if ((piece & 0b11000) == attacker_color) {
+                    int rank = piece & 0b00111;
+                    // Even dirs are diagonals; odd dirs are orthogonals.
+                    if ((dir & 1) == 0) {
+                        if (rank == BISHOP || rank == QUEEN) return true;
+                    } else {
+                        if (rank == ROOK || rank == QUEEN) return true;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    return false;
+}
+/// @brief Check if the king of the given color is in check on the given board
+/// @param board 
+/// @param color 
+/// @return true if in check, false otherwise
+static bool in_check(ChessBoard *board, const int color)
+{
+    return false; // @TODO
+}
+U64 chess_board_legal_moves_BB(ChessBoard *board, const int tile)
+{
+    U64 pseudo_legal_moves = chess_board_pseudo_legal_moves_BB(board, tile);
+    U64 legal_moves = 0ULL;
+    const int piece = board->piece_list[tile];
+    const int rank = (piece & 0b00111);
+    const int color = (piece & 0b11000);
+    const int opponent_color = (color == TILE_WHITE) ? TILE_BLACK : TILE_WHITE;
+    const U64 occ = (board->white | board->black);
+    const uint16_t ep_target = (uint16_t)(board->en_passant & 0x3F);
+    int king_square = -1;
+
+    {
+        // Cache the current king square for non-king moves.
+        U64 king_bb = board->bitboards[KING - 1] & ((color == TILE_WHITE) ? board->white : board->black);
+        for (int i = 0; i < 64; ++i) {
+            if (king_bb & (1ULL << i)) { king_square = i; break; }
+        }
+        if (king_square < 0) return 0ULL;
+    }
+
+    // Simulate each move and keep only those that preserve king safety.
+    for (int to = 0; to < 64; ++to) {
+        U64 to_mask = 1ULL << to;
+        if (!(pseudo_legal_moves & to_mask)) continue;
+
+        ChessBoard tmp = *board;
+        // Shallow copy is enough; we only update occupancy and piece maps.
+        U64 from_mask = 1ULL << tile;
+
+        // Remove the moving piece from its source square.
+        tmp.piece_list[tile] = 0;
+        tmp.bitboards[rank - 1] &= ~from_mask;
+        if (color == TILE_WHITE) tmp.white &= ~from_mask;
+        else tmp.black &= ~from_mask;
+
+        // Apply capture or en passant on the temp board.
+        if (occ & to_mask) {
+            int captured_piece = tmp.piece_list[to];
+            if (captured_piece) {
+                int cap_rank = (captured_piece & 0b00111);
+                U64 cap_mask = to_mask;
+                tmp.bitboards[cap_rank - 1] &= ~cap_mask;
+                if ((captured_piece & 0b11000) == TILE_WHITE) tmp.white &= ~cap_mask;
+                else tmp.black &= ~cap_mask;
+                tmp.piece_list[to] = 0;
+            }
+        } else if (rank == PAWN && ep_target && to == ep_target) {
+            // En passant capture removes the pawn behind the target square.
+            int capture_tile = (color == TILE_WHITE) ? (to - 8) : (to + 8);
+            U64 cap_mask = 1ULL << capture_tile;
+            int captured_piece = tmp.piece_list[capture_tile];
+            if (captured_piece) {
+                int cap_rank = (captured_piece & 0b00111);
+                tmp.bitboards[cap_rank - 1] &= ~cap_mask;
+                if ((captured_piece & 0b11000) == TILE_WHITE) tmp.white &= ~cap_mask;
+                else tmp.black &= ~cap_mask;
+                tmp.piece_list[capture_tile] = 0;
+            }
+        }
+
+        // Place the moving piece on its destination.
+        tmp.piece_list[to] = piece;
+        tmp.bitboards[rank - 1] |= to_mask;
+        if (color == TILE_WHITE) tmp.white |= to_mask;
+        else tmp.black |= to_mask;
+
+        // Also move the rook for castling so the attack test sees correct blockers.
+        if (rank == KING &&
+            ((tile == 4 && (to == 6 || to == 2)) || (tile == 60 && (to == 62 || to == 58)))) {
+            int rook_from = 0;
+            int rook_to = 0;
+            if (color == TILE_WHITE) {
+                if (to == 6) { rook_from = 7; rook_to = 5; }
+                else { rook_from = 0; rook_to = 3; }
+            } else {
+                if (to == 62) { rook_from = 63; rook_to = 61; }
+                else { rook_from = 56; rook_to = 59; }
+            }
+            int rook_piece = tmp.piece_list[rook_from];
+            U64 rook_from_mask = 1ULL << rook_from;
+            U64 rook_to_mask = 1ULL << rook_to;
+            if (rook_piece) {
+                tmp.piece_list[rook_from] = 0;
+                tmp.piece_list[rook_to] = rook_piece;
+                tmp.bitboards[ROOK - 1] &= ~rook_from_mask;
+                tmp.bitboards[ROOK - 1] |= rook_to_mask;
+                if (color == TILE_WHITE) {
+                    tmp.white = (tmp.white & ~rook_from_mask) | rook_to_mask;
+                } else {
+                    tmp.black = (tmp.black & ~rook_from_mask) | rook_to_mask;
+                }
+            }
+        }
+
+        // King square changes only if the king moved.
+        int king_sq = (rank == KING) ? to : king_square;
+        if (!is_square_attacked(&tmp, king_sq, opponent_color)) {
+            legal_moves |= to_mask;
+        }
+    }
+
+    return legal_moves;
+}
+
 /// @brief Get valid moves for a piece (Index array representation)
 /// @param board
 /// @param tile
@@ -336,12 +513,13 @@ int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, const int tile)
 /// @param board
 /// @param from Source tile index (0-63)
 /// @param to Destination tile index (0-63)
-/// @note Captures opponent pieces on the destination square.
-void chess_board_move(ChessBoard *board, const int from, const int to)
+/// @return 1 if successful, 0 otherwise
+// @note Captures opponent pieces on the destination square.
+int chess_board_move(ChessBoard *board, const int from, const int to)
 {
     if (from == to) {
         WARNING("Tried to move piece to same tile: %d", from);
-        return; // nothing to be done
+        return 0; // nothing to be done
     }
     int piece = board->piece_list[from];
     int color = piece & 0b11000;
@@ -353,18 +531,31 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
     INFO("Move piece %c from tile %d to tile %d", piece_id_to_char(piece), from, to);
 
     // Validate move and enforce pseudo-legal moves, as well as turn order
+    // Check turn order
     if (!(board->white_turn && color == TILE_WHITE) 
         && !(!board->white_turn && color == TILE_BLACK)) {
         WARNING("Cannot move piece not on turn. It's %s's turn but piece is %s", 
             (board->white_turn) ? "White" : "Black",
             (color == TILE_WHITE) ? "White" : "Black");
-        return;
+        return 0;
     }
-    if (!(chess_board_pseudo_legal_moves_BB(board, from) & (1ULL << to))) {
-        WARNING("Move is not pseudo-legal. Piece %c at %d cannot move to %d", 
+    // Check the move is a member of the legal moves
+    if (!(chess_board_legal_moves_BB(board, from) & (1ULL << to))) {
+        WARNING("Move is not legal. Piece %c at %d cannot move to %d", 
             piece_id_to_char(piece), from, to);
-        print_bitboard(chess_board_pseudo_legal_moves_BB(board, from));
-        return;
+        return 0;
+    }
+    // Check for moving onto own piece
+    if (color == TILE_WHITE) {
+        if (board->white & (1ULL << to)) {
+            WARNING("Cannot move onto own piece at tile %d", to);
+            return 0;
+        }
+    } else if (color == TILE_BLACK) {
+        if (board->black & (1ULL << to)) {
+            WARNING("Cannot move onto own piece at tile %d", to);
+            return 0;
+        }
     }
 
     // Check for captures
@@ -445,6 +636,7 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
     else {
         board->fifty_move_counter += 1;
     }
+    return 1;
 }
 
 //////////////////////////////////////////
