@@ -219,7 +219,12 @@ U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
                         bb += n_one(n_one(tile_mask));
                     }
                 }
-                // TODO: en pessant (only possible when board en passant square in under attack)
+                {
+                    // En passant target is encoded in lower 6 bits of board->en_passant
+                    uint16_t ep = (uint16_t)(board->en_passant & 0x3F);
+                    U64 ep_mask = ep ? (1ULL << ep) : 0ULL;
+                    bb |= (ne_one(tile_mask) | nw_one(tile_mask)) & ep_mask;
+                }
                 // Capture
                 if (ne_one(tile_mask) & board->black) {
                     bb += ne_one(tile_mask);
@@ -239,8 +244,13 @@ U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
                         bb += s_one(s_one(tile_mask));
                     }
                 }
-            // TODO: en pessant (only possible when board en passant square in under attack)
-            // Capture
+                {
+                    // En passant target is encoded in lower 6 bits of board->en_passant
+                    uint16_t ep = (uint16_t)(board->en_passant & 0x3F);
+                    U64 ep_mask = ep ? (1ULL << ep) : 0ULL;
+                    bb |= (se_one(tile_mask) | sw_one(tile_mask)) & ep_mask;
+                }
+                // Capture
                 if (se_one(tile_mask) & board->white) {
                     bb += se_one(tile_mask);
                 }
@@ -335,6 +345,10 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
     }
     int piece = board->piece_list[from];
     int color = piece & 0b11000;
+    int rank = piece & 0b00111;
+    uint16_t ep_target = (uint16_t)(board->en_passant & 0x3F);
+    int is_castle = (rank == KING)
+        && ((from == 4 && (to == 6 || to == 2)) || (from == 60 && (to == 62 || to == 58)));
     U64 targets_bb = (board->white | board->black) & (~(1ULL << from)); // all pieces except the one moving
     INFO("Move piece %c from tile %d to tile %d", piece_id_to_char(piece), from, to);
 
@@ -370,9 +384,59 @@ void chess_board_move(ChessBoard *board, const int from, const int to)
                 ERROR("Unable to remove piece from tile %d", to);
         }
     }
+    if (rank == PAWN && ep_target && to == ep_target
+        && !((board->white | board->black) & (1ULL << to))) {
+        // En passant capture removes the pawn behind the target square.
+        int capture_tile = (color == TILE_WHITE) ? (to - 8) : (to + 8);
+        if (!chess_board_remove_piece(board, capture_tile))
+            ERROR("Unable to remove piece from tile %d", capture_tile);
+    }
+    // Update castling rights when king or rook moves.
+    if (rank == KING) {
+        if (color == TILE_WHITE)
+            board->en_passant &= ~((1U << 15) | (1U << 14));
+        else
+            board->en_passant &= ~((1U << 13) | (1U << 12));
+    } else if (rank == ROOK) {
+        if (color == TILE_WHITE) {
+            if (from == 0) board->en_passant &= ~(1U << 15);
+            if (from == 7) board->en_passant &= ~(1U << 14);
+        } else {
+            if (from == 56) board->en_passant &= ~(1U << 13);
+            if (from == 63) board->en_passant &= ~(1U << 12);
+        }
+    }
     // Attempts to actually move the piece
     if (!chess_board_remove_piece(board, from)) ERROR("Unable to remove piece from tile %d", from);
     if (!chess_board_add_piece(board, to, piece)) ERROR("Unable to add piece to tile %d", to);
+    if (is_castle) {
+        // Move the rook to complete the castling move.
+        int rook_from = 0;
+        int rook_to = 0;
+        if (color == TILE_WHITE) {
+            if (to == 6) { rook_from = 7; rook_to = 5; }
+            else { rook_from = 0; rook_to = 3; }
+        } else {
+            if (to == 62) { rook_from = 63; rook_to = 61; }
+            else { rook_from = 56; rook_to = 59; }
+        }
+        int rook_piece = board->piece_list[rook_from];
+        if (!chess_board_remove_piece(board, rook_from))
+            ERROR("Unable to remove piece from tile %d", rook_from);
+        if (!chess_board_add_piece(board, rook_to, rook_piece))
+            ERROR("Unable to add piece to tile %d", rook_to);
+    }
+    {
+        uint16_t new_ep = 0;
+        if (rank == PAWN) {
+            if (color == TILE_WHITE) {
+                if (to - from == 16) new_ep = (uint16_t)(from + 8);
+            } else {
+                if (from - to == 16) new_ep = (uint16_t)(from - 8);
+            }
+        }
+        board->en_passant = (board->en_passant & 0xF000) | new_ep;
+    }
     board->white_turn = !board->white_turn;
     board->move_counter += 1;
     if ((piece & 0b111) == PAWN || (targets_bb & (1ULL << to))) {
