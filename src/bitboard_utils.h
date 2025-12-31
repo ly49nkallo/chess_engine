@@ -74,6 +74,7 @@ const U64 file_H = 0x8080808080808080ULL;
 /* will keep applying shifts and leave line of bits in cardinal directions */
 U64 s_slide (U64 b) {
     U64 cur = b;
+    return 0ULL; // placeholder
 }
 U64 n_slide (U64 b);
 U64 e_slide (U64 b);

@@ -154,13 +154,13 @@ int chess_board_remove_piece(ChessBoard *board, const int tile)
 /// @param board
 /// @param tile The tile of the piece we should calculate moves for
 /// @return Bitboard representing the valid moves
-uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
+U64 chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
 {
     U64 tile_mask = (1ULL << tile);
     int piece_id = board->piece_list[tile];
     int rank = (piece_id & 0b00111);
     int color = (piece_id & 0b11000);
-    uint64_t bb = 0ULL;
+    U64 bb = 0ULL;
     switch(rank) {
         case EMPTY:
             ERROR("get moves for empty tile (id: %d)", tile);
@@ -177,8 +177,8 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile
                         bb += n_one(n_one(tile_mask));
                     }
                 }
-            // TODO: en pessant (only possible when board en passant square in under attack)
-            // Capture
+                // TODO: en pessant (only possible when board en passant square in under attack)
+                // Capture
                 if (ne_one(tile_mask) & board->black) {
                     bb += ne_one(tile_mask);
                 }
@@ -189,16 +189,16 @@ uint64_t chess_board_get_pseudo_legal_moves_BB(ChessBoard *board, const int tile
             if (color == TILE_BLACK) {
                 // single pawn push (always possible)
                 bb += s_one(tile_mask);
-                // double pawn push (only possible when pawn on second rank)
-                if (tile_mask & rank_2) {
+                // double pawn push (only possible when pawn on seventh rank)
+                if (tile_mask & rank_7) {
                     bb += s_one(s_one(tile_mask));
                 }
-            // TODO: en pessant (only possible when board en passant square in under attack)
-            // Capture
-                if (se_one(tile_mask) & board->black) {
+                // TODO: en pessant (only possible when board en passant square in under attack)
+                // Capture
+                if (se_one(tile_mask) & board->white) {
                     bb += se_one(tile_mask);
                 }
-                if (sw_one(tile_mask) & board->black) {
+                if (sw_one(tile_mask) & board->white) {
                     bb += sw_one(tile_mask);
                 }
             }
@@ -498,8 +498,9 @@ void print_bitboard(uint64_t bb) // Maybe depreciate
     }
     printf("   a b c d e f g h \n");
 }
-/// @brief Returns True if ChessBoard is valid, False if otherwise
+/// @brief Returns True if ChessBoard is a valid potential gamestate, False if otherwise
 /// @param board 
 bool verify_chessboard(ChessBoard *board) {
     ERROR("Not Implemented!", 0);
+    return false; // placeholder
 }

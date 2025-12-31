@@ -89,7 +89,9 @@ void game_screen_update(void)
     if (hovered_tile_idx > -1 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         if ((current_board->piece_list[hovered_tile_idx] & 0b111) != EMPTY) {
             selected_tile_idx = hovered_tile_idx;
-            legal_moves_bb = chess_board_pseudo_legal_moves_BB(current_board, selected_tile_idx);
+            print_bitboard(legal_moves_bb);
+            legal_moves_bb = chess_board_get_pseudo_legal_moves_BB(current_board, selected_tile_idx);
+            print_bitboard(legal_moves_bb);
             printf("Allowed Moves for piece [%c] at position %i:\n", 
                 piece_id_to_char(current_board->piece_list[selected_tile_idx] & 0b111),
                 selected_tile_idx);
