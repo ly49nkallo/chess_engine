@@ -77,6 +77,7 @@ int chess_board_remove_piece(ChessBoard *board, const int tile);
 int chess_board_move(ChessBoard *board, int from, int to);
 U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, int tile);
 int *chess_board_pseudo_legal_moves_arr(ChessBoard *board, int tile);
+U64 chess_board_legal_moves_BB(ChessBoard *board, int tile);
 
 /* Utilities */
 
@@ -86,5 +87,8 @@ char piece_id_to_char(const int piece);
 void generate_board_from_FEN(ChessBoard* board, const char *FEN_string);
 void print_board_in_terminal_from_FEN(const char *FEN_string);
 void print_bitboard(U64 bb);
+
+/* UCI */
+void uci_loop(ChessBoard *board);
 
 #endif 

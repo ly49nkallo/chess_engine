@@ -21,7 +21,7 @@ static void UnloadFrame(void);         // Unload Frame
 static void UpdateDrawFrame(void);     // Update and Draw (one frame)
 static void ChangeScreen(ScreenState); // Handle screen transition (unloading, initalizing)
 
-static char *WindowName = "Simple Chess Engine - Alpha 1.0";
+static const char *WindowName = "Simple Chess Engine - Alpha 1.0";
 
 int main(void)
 {
@@ -42,14 +42,14 @@ int main(void)
 }
 
 // Initialize game variables
-void InitApp(void)
+static void InitApp(void)
 {
     ChangeScreen(startingScreenState);
     currentScreenState = startingScreenState;
 }
 
 // Update game (one frame)
-void UpdateFrame(void)
+static void UpdateFrame(void)
 {
     switch (currentScreenState)
     {
@@ -70,7 +70,7 @@ void UpdateFrame(void)
 }
 
 // Handle Screen Transitions
-void ChangeScreen(ScreenState newScreenState)
+static void ChangeScreen(ScreenState newScreenState)
 {
     if (currentScreenState == newScreenState)
         throw_error(__LINE__, __FILE__, "ERROR: Changing to already running screen state ID:%d\n", currentScreenState);
@@ -113,7 +113,7 @@ void ChangeScreen(ScreenState newScreenState)
 }
 
 // Draw game (one frame)
-void DrawFrame(void)
+static void DrawFrame(void)
 {
     BeginDrawing();
     ClearBackground(VIOLET);
@@ -133,13 +133,13 @@ void DrawFrame(void)
 }
 
 // Unload game variables
-void UnloadFrame(void)
+static void UnloadFrame(void)
 {
     // TODO: Unload all dynamic loaded data (textures, sounds, models...)
 }
 
 // Update and Draw (one frame)
-void UpdateDrawFrame(void)
+static void UpdateDrawFrame(void)
 {
     UpdateFrame();
     DrawFrame();
