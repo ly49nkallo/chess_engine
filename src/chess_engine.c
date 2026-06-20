@@ -8,7 +8,6 @@
 /// @param board
 void chess_board_init(ChessBoard *board)
 {
-    printf("sizeof board->bitboards = %i\n", (int) (sizeof (board->bitboards)));
     memset(board->bitboards, 0, sizeof (board->bitboards));
     memset(board->piece_list, 0, sizeof (board->piece_list));
     board->castling_avaliablility = 0;
@@ -311,7 +310,8 @@ U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, const int tile)
             bb |= _castle_moves_for_piece(board, tile, color, rank);
             break;
     }
-    print_bitboard(bb);
+    // A piece can never move onto a square occupied by a friendly piece.
+    bb &= ~((color == TILE_WHITE) ? board->white : board->black);
     return bb;
 }
 
@@ -378,13 +378,29 @@ static bool is_square_attacked(const ChessBoard *board, const int square, const 
 
     return false;
 }
-/// @brief Check if the king of the given color is in check on the given board
-/// @param board 
-/// @param color 
-/// @return true if in check, false otherwise
-static bool in_check(ChessBoard *board, const int color)
+/// @brief Find the tile index of the king of the given color.
+/// @param board
+/// @param color TILE_WHITE or TILE_BLACK
+/// @return tile index 0..63, or -1 if no such king exists
+static int find_king_square(const ChessBoard *board, const int color)
 {
-    return false; // @TODO
+    const U64 king_bb = board->bitboards[KING - 1]
+        & ((color == TILE_WHITE) ? board->white : board->black);
+    if (!king_bb) return -1;
+    unsigned long idx = 0;
+    _BitScanForward64(&idx, king_bb);
+    return (int)idx;
+}
+/// @brief Check if the king of the given color is in check on the given board.
+/// @param board
+/// @param color TILE_WHITE or TILE_BLACK
+/// @return true if that king is attacked by the opposing side, false otherwise
+bool chess_board_is_in_check(ChessBoard *board, const int color)
+{
+    const int king_square = find_king_square(board, color);
+    if (king_square < 0) return false;
+    const int opponent_color = (color == TILE_WHITE) ? TILE_BLACK : TILE_WHITE;
+    return is_square_attacked(board, king_square, opponent_color);
 }
 U64 chess_board_legal_moves_BB(ChessBoard *board, const int tile)
 {
@@ -396,16 +412,8 @@ U64 chess_board_legal_moves_BB(ChessBoard *board, const int tile)
     const int opponent_color = (color == TILE_WHITE) ? TILE_BLACK : TILE_WHITE;
     const U64 occ = (board->white | board->black);
     const uint16_t ep_target = (uint16_t)(board->en_passant & 0x3F);
-    int king_square = -1;
-
-    {
-        // Cache the current king square for non-king moves.
-        U64 king_bb = board->bitboards[KING - 1] & ((color == TILE_WHITE) ? board->white : board->black);
-        for (int i = 0; i < 64; ++i) {
-            if (king_bb & (1ULL << i)) { king_square = i; break; }
-        }
-        if (king_square < 0) return 0ULL;
-    }
+    const int king_square = find_king_square(board, color);
+    if (king_square < 0) return 0ULL;
 
     // Simulate each move and keep only those that preserve king safety.
     for (int to = 0; to < 64; ++to) {
@@ -491,23 +499,38 @@ U64 chess_board_legal_moves_BB(ChessBoard *board, const int tile)
     return legal_moves;
 }
 
-/// @brief Get valid moves for a piece (Index array representation)
+/// @brief Convert a moves bitboard into a heap-allocated, -1 terminated array of
+///        destination tile indices.
+/// @param moves bitboard of destination squares
+/// @return malloc'd int array terminated by -1 (caller frees), never NULL
+static int *moves_bb_to_arr(const U64 moves)
+{
+    // Up to 64 destinations plus one slot for the -1 terminator.
+    int *ret = malloc(65 * sizeof(int));
+    if (ret == (void *)0) ERROR("Failed to allocate move array", 0);
+    int count = 0;
+    for (int to = 0; to < 64; ++to) {
+        if (moves & (1ULL << to)) ret[count++] = to;
+    }
+    ret[count] = -1; // sentinel terminator
+    return ret;
+}
+/// @brief Get pseudo-legal moves for a piece (index array representation).
 /// @param board
 /// @param tile
-/// @return Array of integers representing the valid moves on the board
-int *chess_board_get_pseudo_legal_moves_arr(ChessBoard *board, const int tile)
+/// @return malloc'd, -1 terminated array of destination tile indices (caller frees)
+int *chess_board_pseudo_legal_moves_arr(ChessBoard *board, const int tile)
 {
-    // techinically less efficient than bitboard representation because of linear time lookup
-
-    int piece_id = board->piece_list[tile];
-    int rank = (piece_id & 0b00111);
-    int color = (piece_id & 0b11000);
-    int *ret = malloc(64 * sizeof(int));
-    switch (rank)
-    {
-    }
-    throw_not_implemented_error(__LINE__, __FILE__);
-    return (void *)0;
+    // technically less efficient than bitboard representation because of linear time lookup
+    return moves_bb_to_arr(chess_board_pseudo_legal_moves_BB(board, tile));
+}
+/// @brief Get fully legal moves for a piece (index array representation).
+/// @param board
+/// @param tile
+/// @return malloc'd, -1 terminated array of destination tile indices (caller frees)
+int *chess_board_legal_moves_arr(ChessBoard *board, const int tile)
+{
+    return moves_bb_to_arr(chess_board_legal_moves_BB(board, tile));
 }
 /// @brief Move a piece from one tile to another, enforcing turn order and pseudo-legal moves.
 /// @param board

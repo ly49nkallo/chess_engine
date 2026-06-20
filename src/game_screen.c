@@ -1,4 +1,5 @@
 #include "game_screen.h"
+#include <math.h>
 
 /* LOCAL VARIABLES */
 static unsigned long frameCount;
@@ -17,7 +18,37 @@ static int selected_tile_idx;
 static int dragging_piece;
 static U64 legal_moves_bb;
 
+#define MAX_ARROWS 32
+static U64 highlighted_tiles_bb;     // tiles marked by a right click
+static Move arrows[MAX_ARROWS];      // arrows drawn by right click + drag
+static int arrow_count;
+static int right_drag_origin;        // tile where the right button was pressed (-1 if none)
+
 void _render_piece(Rectangle dest, int piece);
+
+/// @brief Remove all user annotations (highlights and arrows).
+static void clear_annotations(void)
+{
+    highlighted_tiles_bb = 0ULL;
+    arrow_count = 0;
+}
+/// @brief Toggle an arrow between two tiles. Removes it if it already exists,
+///        otherwise appends it (up to MAX_ARROWS).
+static void toggle_arrow(int from, int to)
+{
+    for (int i = 0; i < arrow_count; i++) {
+        if (arrows[i].from == from && arrows[i].to == to) {
+            arrows[i] = arrows[arrow_count - 1];
+            arrow_count--;
+            return;
+        }
+    }
+    if (arrow_count < MAX_ARROWS) {
+        arrows[arrow_count].from = (uint8_t)from;
+        arrows[arrow_count].to = (uint8_t)to;
+        arrow_count++;
+    }
+}
 
 /// @brief performed when game screen is transitioned to
 void game_screen_init(void) 
@@ -26,6 +57,9 @@ void game_screen_init(void)
     frameCount = 0L;
     hovered_tile_idx = -1;
     selected_tile_idx = -1;
+    highlighted_tiles_bb = 0ULL;
+    arrow_count = 0;
+    right_drag_origin = -1;
     // setup default board theme
     currentBoardTheme=MemAlloc(sizeof(struct BoardTheme));
     currentBoardTheme->backgroundColor = RAYWHITE;
@@ -87,21 +121,32 @@ void game_screen_update(void)
     }
     /* Select tile */
     if (hovered_tile_idx > -1 && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        /* Selecting a piece clears all annotations (highlights and arrows). */
+        clear_annotations();
         if ((current_board->piece_list[hovered_tile_idx] & 0b111) != EMPTY) {
             selected_tile_idx = hovered_tile_idx;
-            legal_moves_bb = chess_board_pseudo_legal_moves_BB(current_board, selected_tile_idx);
-            printf("Allowed Moves for piece [%c] at position %i:\n", 
-                piece_id_to_char(current_board->piece_list[selected_tile_idx] & 0b111),
-                selected_tile_idx);
-            print_bitboard(legal_moves_bb);
+            legal_moves_bb = chess_board_legal_moves_BB(current_board, selected_tile_idx);
         }
         else {
             selected_tile_idx = -1;
         }
     }
-    /* Arrows */
+    /* Highlights (right click) and arrows (right click + drag) */
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-        
+        right_drag_origin = hovered_tile_idx;
+    }
+    if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)) {
+        if (right_drag_origin > -1 && hovered_tile_idx > -1) {
+            if (hovered_tile_idx == right_drag_origin) {
+                /* Same tile: toggle a highlight on it. */
+                highlighted_tiles_bb ^= (1ULL << hovered_tile_idx);
+            }
+            else {
+                /* Dragged to another tile: toggle an arrow between them. */
+                toggle_arrow(right_drag_origin, hovered_tile_idx);
+            }
+        }
+        right_drag_origin = -1;
     }
     /* Drag piece */
     if (selected_tile_idx > -1 && hovered_tile_idx > -1) {
@@ -194,6 +239,73 @@ void render_legal_moves(void) {
         }
     }
 
+}
+/// @brief screen-space center of a tile (0..63)
+static Vector2 tile_center(int tile)
+{
+    int tileWidth = board_width / 8;
+    Vector2 c = {
+        board_position.x + (float)(tileWidth * (tile % 8)) + (float)tileWidth / 2.0f,
+        board_position.y + (float)(tileWidth * (7 - (tile / 8))) + (float)tileWidth / 2.0f
+    };
+    return c;
+}
+/// @brief render the tiles highlighted by right clicking
+void render_highlights(void)
+{
+    int tileWidth = board_width / 8;
+    Color highlight = currentBoardTheme->highlightColor;
+    highlight.a = 160; // semi-transparent overlay
+    int i;
+    for (i = 0; i < 64; i++) {
+        if (highlighted_tiles_bb & (1ULL << i)) {
+            Rectangle r = {board_position.x + (float)(tileWidth * (i % 8)),
+                board_position.y + (float)(tileWidth * (7 - (i / 8))),
+                (float)tileWidth, (float)tileWidth};
+            DrawRectangleRec(r, highlight);
+        }
+    }
+}
+/// @brief draw a single arrow from one tile to another
+static void draw_arrow(int from, int to, Color color)
+{
+    int tileWidth = board_width / 8;
+    Vector2 start = tile_center(from);
+    Vector2 end = tile_center(to);
+    float thickness = (float)tileWidth / 6.0f;
+    float head = (float)tileWidth / 3.0f;
+
+    float dx = end.x - start.x;
+    float dy = end.y - start.y;
+    float len = sqrtf(dx * dx + dy * dy);
+    if (len < 1.0f) return;
+    float ux = dx / len;
+    float uy = dy / len;
+
+    // Shorten the shaft so it meets the base of the arrow head.
+    Vector2 shaft_end = {end.x - ux * head, end.y - uy * head};
+    DrawLineEx(start, shaft_end, thickness, color);
+
+    // Arrow head as two lines forming a "V" pointing at the destination tile.
+    Vector2 left = {shaft_end.x - uy * head * 0.5f, shaft_end.y + ux * head * 0.5f};
+    Vector2 right = {shaft_end.x + uy * head * 0.5f, shaft_end.y - ux * head * 0.5f};
+    DrawLineEx(end, left, thickness, color);
+    DrawLineEx(end, right, thickness, color);
+}
+/// @brief render all arrows, including the one currently being dragged
+void render_arrows(void)
+{
+    Color color = currentBoardTheme->arrowColor;
+    color.a = 200;
+    int i;
+    for (i = 0; i < arrow_count; i++) {
+        draw_arrow(arrows[i].from, arrows[i].to, color);
+    }
+    /* Live preview of the arrow being dragged with the right mouse button. */
+    if (right_drag_origin > -1 && hovered_tile_idx > -1
+        && hovered_tile_idx != right_drag_origin) {
+        draw_arrow(right_drag_origin, hovered_tile_idx, color);
+    }
 }
 /// @brief render the side labels (1-8, A-H) onto the screen
 void render_labels(void) 
@@ -353,12 +465,14 @@ void game_screen_draw(void)
     int screen_height = GetScreenHeight();
     DrawRectangle(0, 0, screen_width, screen_height, RAYWHITE); // background
     render_tiles();
+    render_highlights();
     render_labels();
     render_turn_indicator();
+    render_check_indicator();
     render_pieces(current_board);
     render_legal_moves();
     render_dragged_piece();
-
+    render_arrows();
 }
 void game_screen_unload(void) 
 {

@@ -1,7 +1,9 @@
 #include "raylib.h"
 #include "screens.h"
 #include "utilities.h"
+#include "chess_engine.h"
 #include <stdio.h>
+#include <string.h>
 
 #if defined(PLATFORM_WEB)
 #error "Web is not supported"
@@ -23,8 +25,22 @@ static void ChangeScreen(ScreenState); // Handle screen transition (unloading, i
 
 static const char *WindowName = "Simple Chess Engine - Alpha 1.0";
 
-int main(void)
+// Run the engine as a UCI client over stdin/stdout instead of the GUI.
+// Triggered by passing "uci" (or "--uci") as the first argument.
+static int run_uci(void)
 {
+    ChessBoard board;
+    chess_board_init(&board);
+    generate_board_from_FEN(&board, CE_FEN_STARTING_POSITION);
+    uci_loop(&board);
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc > 1 && (strcmp(argv[1], "uci") == 0 || strcmp(argv[1], "--uci") == 0))
+        return run_uci();
+
     InitWindow(screen_width, screen_height, WindowName);
 
     InitApp();

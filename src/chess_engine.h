@@ -78,6 +78,8 @@ int chess_board_move(ChessBoard *board, int from, int to);
 U64 chess_board_pseudo_legal_moves_BB(ChessBoard *board, int tile);
 int *chess_board_pseudo_legal_moves_arr(ChessBoard *board, int tile);
 U64 chess_board_legal_moves_BB(ChessBoard *board, int tile);
+int *chess_board_legal_moves_arr(ChessBoard *board, int tile);
+bool chess_board_is_in_check(ChessBoard *board, const int color);
 
 /* Utilities */
 

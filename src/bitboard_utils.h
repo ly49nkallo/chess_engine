@@ -8,7 +8,18 @@
         #define USING_INTRINSICS
     #endif
 #elif defined(__GNUC__) && defined(__LP64__)
-    static INLINE unsigned char _BitScanForward64(unsigned long* Index, U64 Mask)
+    // Portable rotate intrinsics (MSVC provides these via <intrin.h>).
+    static inline U64 _rotl64(U64 x, int r)
+    {
+        unsigned c = ((unsigned)r) & 63u;
+        return (x << c) | (x >> ((64 - c) & 63));
+    }
+    static inline U64 _rotr64(U64 x, int r)
+    {
+        unsigned c = ((unsigned)r) & 63u;
+        return (x >> c) | (x << ((64 - c) & 63));
+    }
+    static inline unsigned char _BitScanForward64(unsigned long* Index, U64 Mask)
     {
         U64 Ret;
         __asm__
@@ -20,7 +31,7 @@
         *Index = (unsigned long)Ret;
         return Mask?1:0;
     }
-    static INLINE unsigned char _BitScanReverse64(unsigned long* Index, U64 Mask)
+    static inline unsigned char _BitScanReverse64(unsigned long* Index, U64 Mask)
     {
         U64 Ret;
         __asm__
