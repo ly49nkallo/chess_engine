@@ -1,5 +1,8 @@
 #include "game_screen.h"
+#include "game_config.h"
+#include "bot_player.h"
 #include <math.h>
+#include <string.h>
 
 /* LOCAL VARIABLES */
 static unsigned long frameCount;
@@ -23,6 +26,86 @@ static U64 highlighted_tiles_bb;     // tiles marked by a right click
 static Move arrows[MAX_ARROWS];      // arrows drawn by right click + drag
 static int arrow_count;
 static int right_drag_origin;        // tile where the right button was pressed (-1 if none)
+
+/* Bot players (NULL when the side is human) */
+static BotPlayer *s_white_bot;
+static BotPlayer *s_black_bot;
+
+/* Move history string for UCI "position ... moves" commands.
+ * Each move is appended as "<move> " after it is applied. */
+#define MOVE_HISTORY_MAX 4096
+static char s_move_history[MOVE_HISTORY_MAX];
+
+/* get_exe_path is defined in bot_registry.c and declared in bot_registry.h */
+
+/* Append a UCI move token to s_move_history. */
+static void history_push(const char *move)
+{
+    strncat(s_move_history, move,
+            MOVE_HISTORY_MAX - (int)strlen(s_move_history) - 2);
+    strncat(s_move_history, " ",
+            MOVE_HISTORY_MAX - (int)strlen(s_move_history) - 1);
+}
+
+/* Convert from/to squares to a UCI move string (e.g. "e2e4").
+ * Handles queen-promotion automatically for pawns reaching rank 1/8. */
+static void squares_to_uci(const ChessBoard *board, int from, int to,
+                             char out[8])
+{
+    out[0] = (char)('a' + (from & 7));
+    out[1] = (char)('1' + (from >> 3));
+    out[2] = (char)('a' + (to   & 7));
+    out[3] = (char)('1' + (to   >> 3));
+    out[4] = '\0';
+    /* Auto-promote to queen */
+    int piece = board->piece_list[from];
+    if ((piece & 0b111) == PAWN) {
+        int to_rank = to >> 3;
+        int color   = piece & 0b11000;
+        if ((color == TILE_WHITE && to_rank == 7) ||
+            (color == TILE_BLACK && to_rank == 0)) {
+            out[4] = 'q';
+            out[5] = '\0';
+        }
+    }
+}
+
+/* Apply a UCI move string to the board and record it in history.
+ * Returns true on success. */
+static bool apply_uci_move(ChessBoard *board, const char *uci_move)
+{
+    if (!uci_move || uci_move[0] == '0') return false;
+    int ffile = uci_move[0] - 'a';
+    int frank = uci_move[1] - '1';
+    int tfile = uci_move[2] - 'a';
+    int trank = uci_move[3] - '1';
+    if ((unsigned)ffile > 7 || (unsigned)frank > 7 ||
+        (unsigned)tfile > 7 || (unsigned)trank > 7) return false;
+    int from = ID_FROM_RANK_FILE(frank, ffile);
+    int to   = ID_FROM_RANK_FILE(trank, tfile);
+    if (!chess_board_move(board, from, to)) return false;
+    /* Handle promotion suffix */
+    if (uci_move[4] && uci_move[4] != ' ') {
+        int piece = board->piece_list[to];
+        if ((piece & 0b111) == PAWN) {
+            int rank = 0;
+            switch (uci_move[4]) {
+                case 'q': case 'Q': rank = QUEEN;  break;
+                case 'r': case 'R': rank = ROOK;   break;
+                case 'b': case 'B': rank = BISHOP; break;
+                case 'n': case 'N': rank = KNIGHT; break;
+                default: break;
+            }
+            if (rank) {
+                int color = piece & 0b11000;
+                chess_board_remove_piece(board, to);
+                chess_board_add_piece(board, to, rank | color);
+            }
+        }
+    }
+    history_push(uci_move);
+    return true;
+}
 
 void _render_piece(Rectangle dest, int piece);
 
@@ -60,6 +143,26 @@ void game_screen_init(void)
     highlighted_tiles_bb = 0ULL;
     arrow_count = 0;
     right_drag_origin = -1;
+    s_move_history[0] = '\0';
+    s_white_bot = NULL;
+    s_black_bot = NULL;
+
+    /* Spawn bot players if configured.
+     * Both bots receive this engine's own executable as their engine_path
+     * so they can spin up a UCI subprocess for move generation. */
+    char engine_exe[512];
+    get_exe_path(engine_exe, (int)sizeof(engine_exe));
+
+    if (g_game_config.white.type == PLAYER_BOT &&
+        g_game_config.white.bot_exe[0]) {
+        s_white_bot = bot_player_create(g_game_config.white.bot_exe, engine_exe);
+        if (s_white_bot) bot_player_new_game(s_white_bot);
+    }
+    if (g_game_config.black.type == PLAYER_BOT &&
+        g_game_config.black.bot_exe[0]) {
+        s_black_bot = bot_player_create(g_game_config.black.bot_exe, engine_exe);
+        if (s_black_bot) bot_player_new_game(s_black_bot);
+    }
     // setup default board theme
     currentBoardTheme=MemAlloc(sizeof(struct BoardTheme));
     currentBoardTheme->backgroundColor = RAYWHITE;
@@ -105,6 +208,32 @@ void game_screen_init(void)
 /// @brief performed once per frame
 void game_screen_update(void) 
 {
+    /* Determine whose turn it is and whether that side is a bot. */
+    bool white_turn = current_board->white_turn;
+    BotPlayer *active_bot = white_turn ? s_white_bot : s_black_bot;
+    bool human_turn = (active_bot == NULL);
+
+    /* --- Bot turn handling --- */
+    if (!human_turn) {
+        if (!bot_player_is_thinking(active_bot)) {
+            /* Kick off move request (fires once per turn) */
+            bot_player_request_move(active_bot,
+                                     s_move_history,
+                                     NULL,  /* start_fen: always startpos for now */
+                                     200);  /* movetime_ms */
+        }
+        /* Poll for the response without blocking */
+        char uci_move[BP_MOVE_MAX];
+        if (bot_player_poll_move(active_bot, uci_move)) {
+            selected_tile_idx = -1;
+            dragging_piece    = 0;
+            clear_annotations();
+            apply_uci_move(current_board, uci_move);
+        }
+        frameCount++;
+        return; /* skip human input processing on bot turns */
+    }
+
     int mouse_x = GetMouseX();
     int mouse_y = GetMouseY();
     int tile_size = board_width / 8;
@@ -156,7 +285,13 @@ void game_screen_update(void)
         if (dragging_piece == 1 
             && IsMouseButtonReleased(MOUSE_BUTTON_LEFT) 
             && hovered_tile_idx != selected_tile_idx) {
-            chess_board_move(current_board, selected_tile_idx, hovered_tile_idx);
+            /* Build UCI move string before applying (board state will change) */
+            char uci_move[8];
+            squares_to_uci(current_board, selected_tile_idx, hovered_tile_idx,
+                           uci_move);
+            if (chess_board_move(current_board, selected_tile_idx, hovered_tile_idx)) {
+                history_push(uci_move);
+            }
             dragging_piece = 0;
             selected_tile_idx = -1;
         }
@@ -422,7 +557,24 @@ void render_dragged_piece()
 void render_turn_indicator() 
 {
     int tileWidth = board_width / 8;
-    const char *turn_text = current_board->white_turn ? "White to move" : "Black to move";
+    bool white_turn = current_board->white_turn;
+
+    /* Choose label: show bot name when a bot is active on this side */
+    char turn_text[64];
+    BotPlayer *active_bot = white_turn ? s_white_bot : s_black_bot;
+    if (active_bot) {
+        const char *name = white_turn
+            ? g_game_config.white.bot_name
+            : g_game_config.black.bot_name;
+        if (bot_player_is_thinking(active_bot))
+            snprintf(turn_text, sizeof(turn_text), "%s is thinking...", name);
+        else
+            snprintf(turn_text, sizeof(turn_text), "%s to move", name);
+    } else {
+        snprintf(turn_text, sizeof(turn_text), "%s to move",
+                 white_turn ? "White" : "Black");
+    }
+
     Vector2 text_dims = MeasureTextEx(boardTextFont, turn_text, 20, 5);
     Vector2 position = {
         board_position.x + (board_width - text_dims.x) * 0.5f,
@@ -476,6 +628,10 @@ void game_screen_draw(void)
 }
 void game_screen_unload(void) 
 {
+    bot_player_destroy(s_white_bot);
+    bot_player_destroy(s_black_bot);
+    s_white_bot = NULL;
+    s_black_bot = NULL;
     UnloadFont(boardTextFont);
     MemFree(currentBoardTheme);
     chess_board_destroy(current_board);

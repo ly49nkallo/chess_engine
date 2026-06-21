@@ -2,6 +2,7 @@
 #include "screens.h"
 #include "utilities.h"
 #include "chess_engine.h"
+#include "game_config.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -13,7 +14,7 @@
 static int screen_width = 800;
 static int screen_height = 600;
 static int frame_rate = 60;
-static const ScreenState startingScreenState = GAME;
+static const ScreenState startingScreenState = BOT_SELECT;
 static ScreenState currentScreenState = 0;
 
 static void InitApp(void);             // Initialize App
@@ -74,6 +75,11 @@ static void UpdateFrame(void)
         if (title_screen_ended() != 0)
             ChangeScreen(title_screen_ended());
         break;
+    case BOT_SELECT:
+        bot_select_screen_update();
+        if (bot_select_screen_ended() != 0)
+            ChangeScreen(bot_select_screen_ended());
+        break;
     case GAME:
         game_screen_update();
         if (game_screen_ended() != 0)
@@ -100,6 +106,9 @@ static void ChangeScreen(ScreenState newScreenState)
     case MENU:
         title_screen_unload();
         break;
+    case BOT_SELECT:
+        bot_select_screen_unload();
+        break;
     case GAME:
         game_screen_unload();
         break;
@@ -116,6 +125,9 @@ static void ChangeScreen(ScreenState newScreenState)
     {
     case MENU:
         title_screen_init();
+        break;
+    case BOT_SELECT:
+        bot_select_screen_init();
         break;
     case GAME:
         game_screen_init();
@@ -137,6 +149,9 @@ static void DrawFrame(void)
     {
     case MENU:
         title_screen_draw();
+        break;
+    case BOT_SELECT:
+        bot_select_screen_draw();
         break;
     case GAME:
         game_screen_draw();
