@@ -39,3 +39,6 @@ add_custom_command(
 
 #set(raylib_VERBOSE 1)
 target_link_libraries(${PROJECT_NAME} raylib)
+
+# Chess bot (standalone, no raylib dependency)
+add_subdirectory(bot)
